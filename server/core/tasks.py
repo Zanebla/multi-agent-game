@@ -47,3 +47,10 @@ class TaskTree:
         self.tasks[new_id] = new_task
 
         return new_id
+
+    def get_tasks_by_role(self, role: str) -> List[TaskNode]:
+        return [task for task in self.tasks.values() if task.assigned_to == role]
+
+    def update_status(self, task_id: str, new_status: str):
+        if task_id in self.tasks:
+            self.tasks[task_id].status = new_status
