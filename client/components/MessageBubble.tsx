@@ -1,5 +1,6 @@
 import Avatar from './Avatar'
 // import { Message } from '../types'
+import { ArrowPathIcon } from '@heroicons/react/24/outline'
 
 interface MessageBubbleProps {
   message: {
@@ -7,6 +8,7 @@ interface MessageBubbleProps {
     content: string
     timestamp: number
     role?: 'user' | 'pm' | 'developer'
+    status?: 'sending' | 'sent'
   }
 }
 
@@ -19,28 +21,33 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   }
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-      {/* {!isUser && (
-        <Avatar
-          role={roleType}
-          className="mr-2"
-        />
-      )} */}
-      <div className="flex-shrink-0">
-        <Avatar
-          role={roleMap[message.sender as keyof typeof roleMap] || 'user'}
-          className="w-10 h-10"
-        />
-      </div>
+    <div
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'} gap-4 mb-4`}>
+      {!isUser && (
+        <div className="flex-shrink-0">
+          <Avatar
+            role={roleMap[message.sender as keyof typeof roleMap] || 'user'}
+            className="w-10 h-10 mr-4"
+          />
+        </div>
+      )}
 
       <div
-        className={`max-w-[70%] rounded-lg p-4 ${
+        className={`max-w-[75%] rounded-lg p-4 ${
           isUser
             ? 'bg-blue-500 text-white ml-auto'
             : message.sender === '产品经理'
             ? 'bg-green-100'
             : 'bg-purple-100'
-        }`}>
+        }
+        ${message.status === 'sending' ? 'opacity-75' : ''}
+        `}>
+        {/* 加载状态 */}
+        {message.status === 'sending' && (
+          <div className="absolute -top-2 right-2">
+            <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-500" />
+          </div>
+        )}
         <div className="font-semibold text-sm mb-1">{message.sender}</div>
         <pre className="whitespace-pre-wrap break-words font-sans">
           {message.content}
