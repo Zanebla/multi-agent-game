@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List
+from services.llm_service import generate_response
 
 
 class Role(BaseModel):
@@ -29,3 +30,10 @@ class Agent:
         {input_text}
         """
         return prompt.strip()
+
+    def generate_response(self, input_text: str) -> str:
+        prompt = self.generate_prompt(input_text)
+        response = generate_response(prompt)
+        self.memory.append(f"{self.role.name}收到：{input_text}")
+        self.memory.append(f"{self.role.name}回复：{response}")
+        return response or "暂时无法回应"

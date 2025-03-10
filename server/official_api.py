@@ -1,14 +1,8 @@
-import os
 from openai import OpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
-load_dotenv(override=True)
-api_key = os.getenv('OPENAI_API_KEY')
-
 client = OpenAI(
     base_url='https://xiaoai.plus/v1',
-    api_key=api_key
+    # sk-xxx替换为自己的key
+    api_key='sk-xxx'
 )
 completion = client.chat.completions.create(
     model="gpt-4o",
