@@ -1,15 +1,9 @@
 import Avatar from './Avatar'
-// import { Message } from '../types'
+import { Message } from '../types/message.types'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
 
 interface MessageBubbleProps {
-  message: {
-    sender: string
-    content: string
-    timestamp: number
-    role?: 'user' | 'pm' | 'developer'
-    status?: 'sending' | 'sent'
-  }
+  message: Message
 }
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
@@ -40,10 +34,10 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             ? 'bg-green-100'
             : 'bg-purple-100'
         }
-        ${message.status === 'sending' ? 'opacity-75' : ''}
+        ${message.status === 'streaming' ? 'opacity-75' : ''}
         `}>
         {/* 加载状态 */}
-        {message.status === 'sending' && (
+        {message.status === 'streaming' && (
           <div className="absolute -top-2 right-2">
             <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-500" />
           </div>

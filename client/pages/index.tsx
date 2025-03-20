@@ -6,16 +6,9 @@ import { io, Socket } from 'socket.io-client'
 import MessageBubble from '../components/MessageBubble'
 import MagIcon from '../components/MagIcon'
 import { CSSTransition, TransitionGroup } from 'react-transition-group'
+import { Message } from '../types/message.types'
 
 type RoleType = 'user' | 'pm' | 'developer'
-
-interface Message {
-  sender: string
-  content: string
-  timestamp: number
-  role?: RoleType
-  status?: 'sending' | 'sent'
-}
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -26,14 +19,45 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   // 使用 useRef 创建 EndRef
   const EndRef = useRef<HTMLDivElement>(null)
+  const typingSpeed = 20 // 打字速度（毫秒/字符）
+
   // 自动滚动到底部
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    })
   }
 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // 流式处理函数
+  const streamMessage = (messageId: number, fullText: string) => {
+    let currentIndex = 0
+    const message = messages[messageId]
+
+    const typingInterval = setInterval(() => {
+      if (currentIndex <= fullText.length) {
+        const newContent = fullText.slice(0, currentIndex)
+        setMessages((prev) =>
+          prev.map((msg, index) =>
+            index === messageId ? { ...msg, displayContent: newContent } : msg
+          )
+        )
+        currentIndex++
+        scrollToBottom()
+      } else {
+        clearInterval(typingInterval)
+        setMessages((prev) =>
+          prev.map((msg, index) =>
+            index === messageId ? { ...msg, status: 'complete' } : msg
+          )
+        )
+      }
+    }, typingSpeed)
+  }
 
   // 初始化WebSocket连接
   useEffect(() => {
@@ -50,18 +74,26 @@ export default function Chat() {
         {
           sender: '系统',
           content: '正在处理中...',
+          displayContent: '正在处理中...',
           timestamp: Date.now(),
-          status: 'sending',
+          status: 'complete',
         },
       ])
     })
     newSocket.on('message', (msg: string) => {
       const data = JSON.parse(msg)
-      // setMessages((prev) => [...prev, data])
-      setMessages((prev) => [
-        ...prev.filter((m) => m.status !== 'sending'),
-        { ...data, status: 'sent' },
-      ])
+      const newMessage = {
+        ...data,
+        displayContent: '',
+        status: 'streaming' as const,
+      }
+      setMessages((prev) => {
+        const newMessages = [...prev, newMessage]
+        setTimeout(() => {
+          streamMessage(newMessages.length - 1, data.content)
+        }, 300)
+        return newMessages
+      })
     })
     setSocket(newSocket)
     return () => {
@@ -74,12 +106,13 @@ export default function Chat() {
     if (!inputText.trim()) return
 
     // 用户消息
-    const userMessage = {
+    const userMessage: Message = {
       sender: 'user',
       content: inputText,
+      displayContent: inputText,
       timestamp: Date.now(),
-      role: 'user' as RoleType,
-      status: 'sending' as const,
+      role: 'user',
+      status: 'streaming',
     }
 
     setMessages((prev) => [...prev, userMessage])
@@ -112,8 +145,10 @@ export default function Chat() {
         {
           sender: '产品经理',
           content: response.data.pm,
+          displayContent: '',
           timestamp: Date.now(),
           role: 'pm',
+          status: 'streaming',
         },
       ])
 
@@ -123,8 +158,10 @@ export default function Chat() {
         {
           sender: '后端工程师',
           content: response.data.dev,
+          displayContent: '',
           timestamp: Date.now(),
           role: 'developer',
+          status: 'streaming',
         },
       ])
     } catch (error) {
@@ -181,7 +218,10 @@ export default function Chat() {
               timeout={300}
               classNames="message"
               unmountOnExit>
-              <MessageBubble message={msg} />
+              <MessageBubble
+                key={msg.timestamp + msg.sender}
+                message={msg}
+              />
             </CSSTransition>
           ))}
         </TransitionGroup>
