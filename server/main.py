@@ -43,7 +43,7 @@ roles = {
     ),
     "developer": Role(
         name="后端工程师",
-        expertise="Python开发",
+        expertise="软件开发",
         personality="逻辑性强"
     )
 }
@@ -111,6 +111,7 @@ async def stream_agent_response(
                 "content": chunk,
                 "role": role,
                 "isChunk": True,
+                "isLastChunk": False,
                 "timestamp": int(time.time() * 1000)
             }, room=sid)
 
@@ -120,16 +121,24 @@ async def stream_agent_response(
                 await asyncio.sleep(0.05 - (current_time - last_chunk_time))
             last_chunk_time = current_time
 
-        # 发送完整消息
-        await sio.emit('message', {
+        # 发送完整消息，标记为最后一个分块
+        # await sio.emit('message', {
+        #     "sender": sender_name,
+        #     "content": full_content,
+        #     "role": role,
+        #     "isChunk": False,
+        #     "isLastChunk": True,
+        #     "status": "complete",
+        #     "timestamp": int(time.time() * 1000)
+        # }, room=sid)
+
+        # 发送完成状态（不发送完整消息）
+        await sio.emit('status', {
             "sender": sender_name,
-            "content": full_content,
+            "status": "completed",
             "role": role,
-            "isChunk": False,
-            "status": "complete",
             "timestamp": int(time.time() * 1000)
         }, room=sid)
-
         return full_content
 
     except Exception as e:

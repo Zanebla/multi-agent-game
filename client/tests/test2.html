@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>扫雷游戏</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    #game {
+      display: grid;
+      margin: 20px auto;
+      grid-template-columns: repeat(9, 30px);
+    }
+
+    .cell {
+      width: 28px;
+      height: 28px;
+      border: 1px solid #ccc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .revealed {
+      background-color: #e0e0e0;
+      cursor: default;
+    }
+
+    .mine {
+      background-color: red;
+    }
+
+    .flagged {
+      background-color: yellow;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>扫雷游戏</h1>
+  <div id="game"></div>
+  <p id="mineCount">剩余地雷：10</p>
+  <button onclick="restartGame()">重新开始</button>
+  <script>
+    const rows = 9
+    const cols = 9
+    const mines = 10
+    let minefield = []
+    let revealed = []
+    let flagged = []
+    let gameStarted = false
+    let timer
+    let mineCount = mines
+
+    const game = document.getElementById('game')
+    const mineCountDisplay = document.getElementById('mineCount')
+
+    function initGame () {
+      minefield = Array.from({ length: rows }, () => Array(cols).fill(0))
+      revealed = Array.from({ length: rows }, () => Array(cols).fill(false))
+      flagged = Array.from({ length: rows }, () => Array(cols).fill(false))
+      mineCount = mines
+      mineCountDisplay.textContent = `剩余地雷：${mineCount}`
+      placeMines()
+      calculateNumbers()
+      createBoard()
+      gameStarted = false
+      clearInterval(timer)
+    }
+
+    function placeMines () {
+      let placed = 0
+      while (placed < mines) {
+        const r = Math.floor(Math.random() * rows)
+        const c = Math.floor(Math.random() * cols)
+        if (minefield[r][c] === 0) {
+          minefield[r][c] = 'M'
+          placed++
+        }
+      }
+    }
+
+    function calculateNumbers () {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (minefield[r][c] === 'M') continue
+          let count = 0
+          for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+              if (r + i >= 0 && r + i < rows && c + j >= 0 && c + j < cols && minefield[r + i][c + j] === 'M') {
+                count++
+              }
+            }
+          }
+          minefield[r][c] = count
+        }
+      }
+    }
+
+    function createBoard () {
+      game.innerHTML = ''
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = document.createElement('div')
+          cell.classList.add('cell')
+          cell.dataset.row = r
+          cell.dataset.col = c
+          cell.addEventListener('click', revealCell)
+          cell.addEventListener('contextmenu', toggleFlag)
+          game.appendChild(cell)
+        }
+      }
+    }
+
+    function revealCell (event) {
+      if (!gameStarted) {
+        gameStarted = true
+        timer = setInterval(updateTimer, 1000)
+      }
+      const r = parseInt(this.dataset.row)
+      const c = parseInt(this.dataset.col)
+      if (revealed[r][c] || flagged[r][c]) return
+      revealed[r][c] = true
+      this.classList.add('revealed')
+      const value = minefield[r][c]
+      if (value === 'M') {
+        this.classList.add('mine')
+        alert('游戏结束！')
+        revealAllMines()
+        clearInterval(timer)
+      } else {
+        this.textContent = value > 0 ? value : ''
+        if (value === 0) {
+          for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+              if (r + i >= 0 && r + i < rows && c + j >= 0 && c + j < cols) {
+                document.querySelector(`[data-row="${r + i}"][data-col="${c + j}"]`).click()
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function toggleFlag (event) {
+      event.preventDefault()
+      const r = parseInt(this.dataset.row)
+      const c = parseInt(this.dataset.col)
+      if (revealed[r][c]) return
+      flagged[r][c] = !flagged[r][c]
+      if (flagged[r][c]) {
+        this.classList.add('flagged')
+        mineCount--
+      } else {
+        this.classList.remove('flagged')
+        mineCount++
+      }
+      mineCountDisplay.textContent = `剩余地雷：${mineCount}`
+    }
+
+    function revealAllMines () {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (minefield[r][c] === 'M') {
+            document.querySelector(`[data-row="${r}"][data-col="${c}"]`).classList.add('mine')
+          }
+        }
+      }
+    }
+
+    function restartGame () {
+      initGame()
+    }
+
+    function updateTimer () {
+      // Timer update logic can be implemented here
+    }
+
+    // Initialize the game on page load
+    initGame();
+  </script>
+</body>
+
+</html>

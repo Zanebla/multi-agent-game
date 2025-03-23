@@ -42,6 +42,7 @@ class Agent:
         1. 使用{self.role.expertise}领域的专业术语
         2. 保持{self.role.personality}的表达风格
         3. 结构化输出（如分点说明）
+        4. 如果你是后端工程师或developer的话则必须输出可以直接运行的代码!!这非常重要!!
         """
 
     async def stream_response(self, input_text: str) -> AsyncGenerator[str, None]:

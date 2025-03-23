@@ -8,15 +8,11 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.sender === 'user'
-  // const roleMap: { [key: string]: 'user' | 'pm' | 'developer' } = {
-  //   产品经理: 'pm',
-  //   后端工程师: 'developer',
-  //   user: 'user',
-  // }
   const roleMap = {
     产品经理: 'pm',
     后端工程师: 'developer',
     user: 'user',
+    系统: 'system',
   } as const
 
   return (

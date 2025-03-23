@@ -1,6 +1,6 @@
 // types.ts（推荐单独的类型文件）
 export type MessageStatus = 'streaming' | 'complete'
-export type RoleType = 'user' | 'pm' | 'developer'
+export type RoleType = 'user' | 'pm' | 'developer' | 'system'
 
 export interface Message {
   id: number
