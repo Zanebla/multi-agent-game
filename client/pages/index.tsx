@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAgentWebSocket } from '../lib/websocket'
 import { ChatBubbleLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import axios from 'axios'
@@ -10,54 +10,54 @@ import { Message } from '../types/message.types'
 
 type RoleType = 'user' | 'pm' | 'developer'
 
+// 自增ID生成器
+let messageId = 0
+const createMessage = (msg: Omit<Message, 'id'>): Message => ({
+  id: messageId++,
+  ...msg,
+  displayContent: msg.displayContent || '',
+  status: msg.status || 'complete',
+})
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputText, setInputText] = useState('')
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-  // 使用 useRef 创建 EndRef
-  const EndRef = useRef<HTMLDivElement>(null)
-  const typingSpeed = 20 // 打字速度（毫秒/字符）
 
   // 自动滚动到底部
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'nearest',
-    })
-  }
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    const timer = setTimeout(scrollToBottom, 100)
+    return () => clearTimeout(timer)
+  }, [messages, scrollToBottom])
 
-  // 流式处理函数
-  const streamMessage = (messageId: number, fullText: string) => {
+  // 流式消息处理
+  const streamMessage = useCallback((targetId: number, fullText: string) => {
     let currentIndex = 0
-    const message = messages[messageId]
+    const interval = setInterval(() => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === targetId
+            ? {
+                ...msg,
+                displayContent: fullText.slice(0, currentIndex),
+                status:
+                  currentIndex >= fullText.length ? 'complete' : 'streaming',
+              }
+            : msg
+        )
+      )
 
-    const typingInterval = setInterval(() => {
-      if (currentIndex <= fullText.length) {
-        const newContent = fullText.slice(0, currentIndex)
-        setMessages((prev) =>
-          prev.map((msg, index) =>
-            index === messageId ? { ...msg, displayContent: newContent } : msg
-          )
-        )
-        currentIndex++
-        scrollToBottom()
-      } else {
-        clearInterval(typingInterval)
-        setMessages((prev) =>
-          prev.map((msg, index) =>
-            index === messageId ? { ...msg, status: 'complete' } : msg
-          )
-        )
+      if (currentIndex++ >= fullText.length) {
+        clearInterval(interval)
       }
-    }, typingSpeed)
-  }
+    }, 20)
+  }, [])
 
   // 初始化WebSocket连接
   useEffect(() => {
@@ -68,104 +68,73 @@ export default function Chat() {
     newSocket.on('connect', () => {
       console.log('Connected to WebSocket')
     })
-    newSocket.on('processing', () => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: '系统',
-          content: '正在处理中...',
-          displayContent: '正在处理中...',
-          timestamp: Date.now(),
-          status: 'complete',
-        },
-      ])
-    })
-    newSocket.on('message', (msg: string) => {
-      const data = JSON.parse(msg)
-      const newMessage = {
-        ...data,
-        displayContent: '',
-        status: 'streaming' as const,
-      }
-      setMessages((prev) => {
-        const newMessages = [...prev, newMessage]
-        setTimeout(() => {
-          streamMessage(newMessages.length - 1, data.content)
-        }, 300)
-        return newMessages
+
+    newSocket
+      .on('message', (data: any) => {
+        const message = typeof data === 'string' ? JSON.parse(data) : data
+
+        setMessages((prev) => {
+          const lastMsg = prev[prev.length - 1]
+
+          // 处理分块消息
+          if (message.isChunk && lastMsg?.status === 'streaming') {
+            return prev.map((msg) => ({
+              ...msg,
+              content: msg.content + message.content,
+              displayContent: msg.displayContent + message.content,
+            }))
+          }
+
+          // 创建新消息
+          const newMessage = createMessage({
+            sender: message.sender,
+            content: message.content,
+            displayContent: message.isChunk ? '' : message.content,
+            timestamp: message.timestamp || Date.now(),
+            role: message.role,
+            status: message.isChunk ? 'streaming' : 'complete',
+          })
+
+          if (message.isChunk) {
+            streamMessage(newMessage.id, message.content)
+          }
+
+          return [...prev, newMessage]
+        })
       })
-    })
+      .on('error', (err) => console.error('Socket error:', err))
+
     setSocket(newSocket)
     return () => {
       newSocket.disconnect()
     }
-  }, [])
+  }, [streamMessage])
 
   // 发送消息处理
   const handleSend = async () => {
-    if (!inputText.trim()) return
+    if (!inputText.trim() || !socket) return
 
     // 用户消息
-    const userMessage: Message = {
+    const userMessage = createMessage({
       sender: 'user',
       content: inputText,
       displayContent: inputText,
       timestamp: Date.now(),
       role: 'user',
-      status: 'streaming',
-    }
+      status: 'complete',
+    })
 
     setMessages((prev) => [...prev, userMessage])
     setInputText('')
     setIsLoading(true)
 
     try {
-      await startProject()
+      // 使用socket.io发送请求
+      socket.emit('start_project', { goal: inputText })
+    } catch (error) {
+      console.error('Error:', error)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  // 启动项目流程
-  const startProject = async () => {
-    try {
-      const response = await axios.post(
-        'http://localhost:8000/start-project',
-        { goal: inputText },
-        {
-          headers: {
-            'Content-Type': 'application/json', // 明确指定JSON格式
-          },
-        }
-      )
-
-      // 显示产品经理需求
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: '产品经理',
-          content: response.data.pm,
-          displayContent: '',
-          timestamp: Date.now(),
-          role: 'pm',
-          status: 'streaming',
-        },
-      ])
-
-      // 显示开发者响应
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: '后端工程师',
-          content: response.data.dev,
-          displayContent: '',
-          timestamp: Date.now(),
-          role: 'developer',
-          status: 'streaming',
-        },
-      ])
-    } catch (error) {
-      console.error('启动失败:', error)
     }
   }
 
@@ -212,27 +181,24 @@ export default function Chat() {
           />
         ))} */}
         <TransitionGroup component={null}>
-          {messages.map((msg, i) => (
+          {messages.map((msg) => (
             <CSSTransition
-              key={i}
+              key={msg.id}
               timeout={300}
               classNames="message"
               unmountOnExit>
-              <MessageBubble
-                key={msg.timestamp + msg.sender}
-                message={msg}
-              />
+              <MessageBubble message={msg} />
             </CSSTransition>
           ))}
         </TransitionGroup>
-        <div ref={EndRef} />
+        <div ref={messagesEndRef} />
       </div>
 
       {/* 输入控制区 */}
       <div className="flex gap-2">
         <div className=" mx-auto flex gap-3">
           <textarea
-            ref={inputRef}
+            // ref={inputRef}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyPress}

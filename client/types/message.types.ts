@@ -3,10 +3,11 @@ export type MessageStatus = 'streaming' | 'complete'
 export type RoleType = 'user' | 'pm' | 'developer'
 
 export interface Message {
+  id: number
   sender: string
   content: string
   displayContent: string
   timestamp: number
-  role?: RoleType
-  status?: MessageStatus
+  role: RoleType
+  status: MessageStatus
 }

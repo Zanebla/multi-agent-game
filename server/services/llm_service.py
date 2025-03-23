@@ -2,6 +2,7 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 from typing import Optional
+import time
 
 load_dotenv()
 load_dotenv(override=True)
@@ -13,19 +14,24 @@ client = OpenAI(
 )
 
 
-def generate_response(
+def stream_response(
     prompt: str,
     model: str = "gpt-4o",
-    max_tokens: int = 500
-) -> Optional[str]:
+    max_tokens: int = 2000
+    # ) -> Optional[str]:
+):
     try:
-        response = client.chat.completions.create(
+        stream = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=max_tokens,
+            stream=True,
             temperature=0.7
         )
-        return response.choices[0].message.content
+        # return response.choices[0].message.content
+        for chunk in stream:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
     except Exception as e:
-        print(f"LLM API错误: {str(e)}")
-        return None
+        yield f"\n[系统错误] 生成失败: {str(e)}"

@@ -1,47 +1,57 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, List, AsyncGenerator, Callable
+import socketio
+import asyncio
+import logging
+from .schemas import MessageSchema
+from .schemas import MessageSchema, TaskNodeSchema
 
-
-@dataclass
-class Message:
-    sender: str          # 发送者角色名
-    content: str         # 消息内容
-    receiver: Optional[str] = None  # 接收者（None表示广播）
-    timestamp: datetime = datetime.now()
+logger = logging.getLogger(__name__)
 
 
 class Coordinator:
-    def __init__(self):
-        self.message_queue = []       # 待处理消息队列
-        self.conversation_log = []    # 完整对话记录
-        self.subscribers = set()      # 订阅者列表（角色名）
+    """协调中心核心类，负责：
+    1. 消息路由与分发
+    2. 任务状态跟踪
+    3. 错误恢复机制
+    4. 工作流协调
+    """
 
-    def post_message(self, message: Message):
-        """将消息加入队列并记录日志"""
+    def __init__(self, message_handler: Callable):
+        self.message_queue: List[MessageSchema] = []
+        self.message_handler = message_handler
+
+    async def post_message(self, message: Message):
+        """异步处理消息"""
         self.message_queue.append(message)
         self.conversation_log.append(message)
 
-    def get_next_message(self) -> Optional[Message]:
-        """获取并移除下一条消息"""
-        if self.message_queue:
-            return self.message_queue.pop(0)
-        return None
+        # 立即触发分发
+        await self.distribute_messages()
 
-    def subscribe(self, role_name: str):
-        """角色订阅消息"""
-        self.subscribers.add(role_name)
+    async def distribute_messages(self):
+        """异步消息分发"""
+        while self.message_queue:
+            msg = self.message_queue.pop(0)
+            if msg.receiver:
+                await self._send_private(msg)
+            else:
+                await self._broadcast(msg)
 
-    def distribute_messages(self):
-        """分发消息给订阅者"""
-        while msg := self.get_next_message():
-            if msg.receiver:  # 定向消息
-                if msg.receiver in self.subscribers:
-                    yield msg
-            else:  # 广播消息
-                for sub in self.subscribers:
-                    yield Message(
-                        sender=msg.sender,
-                        content=msg.content,
-                        receiver=sub
-                    )
+    async def _send_private(self, msg: Message):
+        """发送私密消息"""
+        if msg.sid:
+            await self.sio.emit('agent_message', {
+                'sender': msg.sender,
+                'content': msg.content,
+                'receiver': msg.receiver
+            }, room=msg.sid)
+
+    async def _broadcast(self, msg: Message):
+        """广播给所有订阅者"""
+        await self.sio.emit('agent_message', {
+            'sender': msg.sender,
+            'content': msg.content
+        })

@@ -8,11 +8,16 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.sender === 'user'
-  const roleMap: { [key: string]: 'user' | 'pm' | 'developer' } = {
+  // const roleMap: { [key: string]: 'user' | 'pm' | 'developer' } = {
+  //   产品经理: 'pm',
+  //   后端工程师: 'developer',
+  //   user: 'user',
+  // }
+  const roleMap = {
     产品经理: 'pm',
     后端工程师: 'developer',
     user: 'user',
-  }
+  } as const
 
   return (
     <div
@@ -27,16 +32,17 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
       )}
 
       <div
-        className={`max-w-[75%] rounded-lg p-4 ${
-          isUser
-            ? 'bg-blue-500 text-white ml-auto'
-            : message.sender === '产品经理'
-            ? 'bg-green-100'
-            : 'bg-purple-100'
-        }
-        ${message.status === 'streaming' ? 'opacity-75' : ''}
+        className={`max-w-[75%] rounded-lg p-4 relative
+          ${
+            isUser
+              ? 'bg-blue-500 text-white ml-auto'
+              : message.sender === '产品经理'
+              ? 'bg-green-100'
+              : 'bg-purple-100'
+          }
+        ${message.status === 'streaming' ? 'animate-pulse' : ''}
         `}>
-        {/* 加载状态 */}
+        {/* 流式传输指示器 */}
         {message.status === 'streaming' && (
           <div className="absolute -top-2 right-2">
             <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-500" />
@@ -44,7 +50,9 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         )}
         <div className="font-semibold text-sm mb-1">{message.sender}</div>
         <pre className="whitespace-pre-wrap break-words font-sans">
-          {message.content}
+          {message.status === 'streaming'
+            ? message.displayContent
+            : message.content}
         </pre>
         <div
           className={`text-xs mt-2 ${
