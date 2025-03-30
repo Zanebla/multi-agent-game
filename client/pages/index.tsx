@@ -1,233 +1,165 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { useAgentWebSocket } from '../lib/websocket'
+import React, { useState, useRef, useEffect } from 'react'
+import { CSSTransition, TransitionGroup } from 'react-transition-group'
 import { ChatBubbleLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import axios from 'axios'
-import { io, Socket } from 'socket.io-client'
 import MessageBubble from '../components/MessageBubble'
 import MagIcon from '../components/MagIcon'
-import { CSSTransition, TransitionGroup } from 'react-transition-group'
-import { Message } from '../types/message.types'
-
-type RoleType = 'user' | 'pm' | 'developer'
-
-// 自增ID生成器
-let messageId = 0
-const createMessage = (msg: Omit<Message, 'id'>): Message => ({
-  id: messageId++,
-  ...msg,
-  displayContent: msg.displayContent || '',
-  // status: msg.status || 'complete',
-  status: 'streaming',
-})
-
+import { useMessages } from '../hooks/useMessages'
+import { useSocket } from '../hooks/useSocket'
+import type { Message } from '../types/message.types'
+/**
+ * 主聊天界面组件
+ * 负责：
+ * 1. 管理用户输入和消息发送
+ * 2. 显示聊天消息列表
+ * 3. 处理WebSocket连接和消息接收
+ */
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([])
+  // 用户输入状态
   const [inputText, setInputText] = useState('')
-  const [socket, setSocket] = useState<Socket | null>(null)
+  // 加载状态（发送消息时显示加载动画）
   const [isLoading, setIsLoading] = useState(false)
+  // 用于自动滚动到消息底部的引用
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  /*
+   * 使用自定义Hook管理消息状态
+   * messages: 当前消息列表
+   * handleIncomingMessage: 处理接收到的消息
+   * addMessage: 添加新消息
+   */
+  const { messages, handleIncomingMessage, addMessage } = useMessages()
+
+  /*
+   * 使用自定义Hook管理WebSocket连接
+   * socket: Socket.io实例
+   * isConnected: 连接状态
+   * sessionId: 当前会话ID
+   * sendMessage: 发送消息方法
+   */
+  const { socket, isConnected, sessionId, sendMessage } = useSocket()
+
+  // 当消息列表变化时自动滚动到底部
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    })
   }, [messages])
 
-  // 流式消息处理
-  // const streamMessage = useCallback((targetId: number, fullText: string) => {
-  //   let currentIndex = 0
-  //   const interval = setInterval(() => {
-  //     setMessages((prev) =>
-  //       prev.map((msg) =>
-  //         msg.id === targetId
-  //           ? {
-  //               ...msg,
-  //               displayContent: fullText.slice(0, currentIndex),
-  //               status:
-  //                 currentIndex >= fullText.length ? 'complete' : 'streaming',
-  //             }
-  //           : msg
-  //       )
-  //     )
-
-  //     if (currentIndex++ >= fullText.length) {
-  //       clearInterval(interval)
-  //     }
-  //   }, 20)
-  // }, [])
-
-  // 初始化WebSocket连接
-  // useEffect(() => {
-  //   const newSocket = io('http://localhost:8000', {
-  //     path: '/socket.io/', // 明确指定路径
-  //     transports: ['websocket'],
-  //   })
-  //   newSocket.on('connect', () => {
-  //     console.log('Connected to WebSocket')
-  //   })
-
-  //   newSocket
-  //     .on('message', (data: any) => {
-  //       const message = typeof data === 'string' ? JSON.parse(data) : data
-
-  //       setMessages((prev) => {
-  //         const lastMsg = prev[prev.length - 1]
-
-  //         // 处理分块消息
-  //         if (message.isChunk && lastMsg?.status === 'streaming') {
-  //           return prev.map((msg) => ({
-  //             ...msg,
-  //             content: msg.content + message.content,
-  //             displayContent: msg.displayContent + message.content,
-  //           }))
-  //         }
-
-  //         // 创建新消息
-  //         const newMessage = createMessage({
-  //           sender: message.sender,
-  //           content: message.content,
-  //           displayContent: message.isChunk ? '' : message.content,
-  //           timestamp: message.timestamp || Date.now(),
-  //           role: message.role,
-  //           status: message.isChunk ? 'streaming' : 'complete',
-  //         })
-
-  //         if (message.isChunk) {
-  //           streamMessage(newMessage.id, message.content)
-  //         }
-
-  //         return [...prev, newMessage]
-  //       })
-  //     })
-  //     .on('error', (err) => console.error('Socket error:', err))
-
-  //   setSocket(newSocket)
-  //   return () => {
-  //     newSocket.disconnect()
-  //   }
-  // }, [streamMessage])
-
+  // 注册WebSocket事件监听器
   useEffect(() => {
-    const newSocket = io('http://localhost:8000', {
-      path: '/socket.io/',
-      transports: ['websocket'],
-    })
+    if (!socket) return
 
-    newSocket.on('connect', () => {
-      console.log('Connected to WebSocket')
-    })
-
-    newSocket.on('message', (data: any) => {
-      const message = typeof data === 'string' ? JSON.parse(data) : data
-
-      setMessages((prev) => {
-        if (message.isChunk) {
-          const existingMsg = prev.find(
-            (m) =>
-              m.sender === message.sender &&
-              m.role === message.role &&
-              m.status === 'streaming'
-          )
-          if (existingMsg) {
-            return prev.map((m) =>
-              m.id === existingMsg.id
-                ? {
-                    ...m,
-                    content: m.content + message.content,
-                    displayContent: m.displayContent + message.content,
-                    status: message.isLastChunk ? 'complete' : 'streaming', // 关键修改
-                  }
-                : m
-            )
-          } else {
-            const newMsg = createMessage({
-              sender: message.sender,
-              content: message.content,
-              displayContent: '',
-              role: message.role,
-              timestamp: message.timestamp || Date.now(),
-              status: 'streaming',
-            })
-            return [...prev, newMsg]
-          }
+    const handleSocketMessage = (data: unknown) => {
+      try {
+        // 确保data是对象类型
+        const messageData = typeof data === 'string' ? JSON.parse(data) : data
+        if (messageData && typeof messageData === 'object') {
+          handleIncomingMessage(messageData)
         } else {
-          const newMsg = createMessage({
-            sender: message.sender,
-            content: message.content,
-            displayContent: message.content,
-            role: message.role,
-            status: 'complete',
-            timestamp: message.timestamp || Date.now(),
-          })
-          return [...prev, newMsg]
+          throw new Error('无效的消息格式')
         }
-      })
-    })
-
-    newSocket.on('status', (statusData) => {
-      if (statusData.status === 'completed') {
-        setMessages((prev) =>
-          prev.map((msg) => {
-            if (msg.sender === statusData.sender) {
-              return {
-                ...msg,
-                status: 'complete',
-              }
-            }
-            return msg
-          })
-        )
-      }
-    })
-
-    newSocket.on('error', (err) => {
-      console.error('Socket error:', err)
-      setMessages((prev) => [
-        ...prev,
-        createMessage({
+        setIsLoading(false)
+      } catch (err: unknown) {
+        console.error('消息处理错误:', err)
+        addMessage({
           sender: '系统',
-          content: `错误: ${err.message}`,
-          displayContent: '',
+          content: `消息处理错误: ${
+            err instanceof Error ? err.message : '未知错误'
+          }`,
           role: 'system',
-          timestamp: Date.now(),
           status: 'complete',
-        }),
-      ])
-    })
-
-    setSocket(newSocket)
-    return () => {
-      newSocket.disconnect()
+          timestamp: Date.now(),
+          id: Date.now().toString(), // 确保有id字段
+          displayContent: '', // 确保有displayContent字段
+        } as Message) // 添加类型断言
+      }
     }
-  }, [])
 
-  // 发送消息处理
+    // 修改错误处理函数
+    const handleSocketError = (err: Error | string) => {
+      console.error('WebSocket错误:', err)
+      const errorMessage = typeof err === 'string' ? err : err.message
+      addMessage({
+        sender: '系统',
+        content: `连接错误: ${errorMessage}`,
+        role: 'system',
+        status: 'complete',
+        timestamp: Date.now(),
+        id: Date.now().toString(),
+        displayContent: '',
+      } as Message)
+      setIsLoading(false)
+    }
+
+    // 注册事件监听
+    socket.on('message', handleSocketMessage)
+    socket.on('error', handleSocketError)
+
+    // 组件卸载时清理
+    return () => {
+      socket.off('message', handleSocketMessage)
+      socket.off('error', handleSocketError)
+    }
+  }, [socket, handleIncomingMessage, addMessage])
+
+  /**
+   * 发送消息处理函数
+   */
   const handleSend = async () => {
-    if (!inputText.trim() || !socket) return
+    if (!sessionId) {
+      console.log('正在获取会话ID...')
+      return
+    }
+    if (!inputText.trim() || !isConnected) return
 
-    // 用户消息
-    const userMessage = createMessage({
-      sender: 'user',
-      content: inputText,
-      displayContent: inputText,
-      timestamp: Date.now(),
-      role: 'user',
-      status: 'complete',
-    })
-
-    setMessages((prev) => [...prev, userMessage])
-    setInputText('')
     setIsLoading(true)
 
+    // 添加用户消息到列表
+    addMessage({
+      sender: '用户',
+      content: inputText,
+      role: 'user',
+      status: 'complete',
+      timestamp: Date.now(),
+      id: Date.now().toString(),
+      displayContent: inputText,
+    } as Message)
+
+    // 清空输入框
+    setInputText('')
+
     try {
-      // 使用socket.io发送请求
-      socket.emit('start_project', { goal: inputText })
+      // 通过WebSocket发送消息
+      await sendMessage('start_project', {
+        goal: inputText,
+        meta: {
+          session_id: sessionId,
+          timestamp: Date.now(),
+        },
+      })
     } catch (error) {
-      console.error('Error:', error)
+      // 错误处理
+      console.error('发送消息失败:', error)
+      addMessage({
+        sender: '系统',
+        content: `发送失败: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        role: 'system',
+        status: 'complete',
+        timestamp: Date.now(),
+        id: Date.now().toString(),
+        displayContent: '',
+      } as Message)
     } finally {
       setIsLoading(false)
     }
   }
 
-  // 输入框键盘事件
+  /**
+   * 处理键盘事件（按Enter发送消息）
+   */
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -236,78 +168,66 @@ export default function Chat() {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      {/* 页面顶部标题 */}
+    <div className="container mx-auto p-4 max-w-4xl">
+      {/* 头部标题和Logo */}
       <header className="mb-5">
         <div className="flex perspective-1000 justify-center items-center gap-2">
           <MagIcon />
-          <a
-            href="https://github.com/Zanebla"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-4xl font-bold italic tracking-wide text-amber-400 hover:text-amber-600 transition-colors duration-200">
-            Zanebla
-          </a>
-          <span className="text-4xl font-bold text-gray-600">/</span>
-          <a
-            href="https://github.com/Zanebla/multi-agent-game/tree/dev"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-4xl font-bold italic tracking-wide text-rose-400 hover:text-rose-600 transition-colors duration-200">
-            MAG
-          </a>
+          <h1 className="text-4xl font-bold italic tracking-wide text-amber-400">
+            多智能体协作系统
+          </h1>
         </div>
       </header>
 
-      {/* 消息展示区 */}
+      {/* 连接状态提示 */}
+      {!isConnected && (
+        <div className="mb-2 text-center text-yellow-500">
+          正在连接服务器，请稍候...
+        </div>
+      )}
+
+      {/* 消息列表容器 */}
       <div
-        style={{ height: '72vh' }}
-        className="flex-1 overflow-y-auto p-6 bg-slate-800 rounded-lg mb-5">
-        {/* {messages.map((msg, i) => (
-          <MessageBubble
-            key={i}
-            message={msg}
-          />
-        ))} */}
-        <TransitionGroup component={null}>
+        className="flex-1 overflow-y-auto p-6 bg-slate-800 rounded-lg mb-5"
+        style={{ height: '70vh' }}>
+        <TransitionGroup component="div">
           {messages.map((msg) => (
             <CSSTransition
               key={msg.id}
               timeout={300}
               classNames="message"
+              nodeRef={messagesEndRef}
               unmountOnExit>
               <MessageBubble message={msg} />
             </CSSTransition>
           ))}
         </TransitionGroup>
-        <div
-          ref={messagesEndRef}
-          style={{ height: 0 }}
-        />
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* 输入控制区 */}
+      {/* 输入区域 */}
       <div className="flex gap-2">
-        <div className=" mx-auto flex gap-3">
+        <div className="mx-auto flex gap-3 w-full">
           <textarea
-            // ref={inputRef}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyPress}
-            placeholder="Paint your dreams, my boss"
-            className="w-96 flex-1 p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-rose-900"
-            rows={2}
+            placeholder="请输入您的需求..."
+            className="flex-1 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows={3}
             disabled={isLoading}
           />
           <button
             onClick={handleSend}
-            className="w-24 px-4 py-2 flex justify-center items-center bg-rose-600 text-white rounded hover:bg-rose-400">
+            disabled={!isConnected || isLoading}
+            className="w-24 px-4 py-3 flex justify-center items-center bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:bg-gray-400 transition-colors">
             {isLoading ? (
               <ArrowPathIcon className="w-5 h-5 animate-spin" />
             ) : (
-              <span>
-                <ChatBubbleLeftIcon className="w-5 h-5" /> Send
-              </span>
+              <>
+                <ChatBubbleLeftIcon className="w-5 h-5 mr-1" />
+                发送
+              </>
             )}
           </button>
         </div>

@@ -11,9 +11,19 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   const roleMap = {
     产品经理: 'pm',
     后端工程师: 'developer',
+    UI设计师: 'ui_designer',
     user: 'user',
     系统: 'system',
   } as const
+
+  // 头像颜色映射
+  const avatarColors = {
+    pm: 'bg-blue-500',
+    developer: 'bg-green-500',
+    ui_designer: 'bg-purple-500',
+    system: 'bg-red-500',
+    user: 'bg-gray-500',
+  }
 
   return (
     <div
@@ -31,17 +41,22 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         className={`max-w-[75%] rounded-lg p-4 relative
           ${
             isUser
-              ? 'bg-blue-500 text-white ml-auto'
+              ? 'bg-rose-100'
               : message.sender === '产品经理'
+              ? 'bg-blue-100'
+              : message.sender === '后端工程师'
               ? 'bg-green-100'
-              : 'bg-purple-100'
+              : message.sender === 'UI设计师'
+              ? 'bg-purple-100'
+              : 'bg-red-100'
           }
         ${message.status === 'streaming' ? 'animate-pulse' : ''}
         `}>
         {/* 流式传输指示器 */}
         {message.status === 'streaming' && (
-          <div className="absolute -top-2 right-2">
-            <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-500" />
+          <div className="absolute -bottom-2 right-0 flex items-center">
+            <span className="text-xs text-gray-500 mr-1">思考中</span>
+            <ArrowPathIcon className="w-3 h-3 animate-spin text-gray-500" />
           </div>
         )}
         <div className="font-semibold text-sm mb-1">{message.sender}</div>
@@ -58,12 +73,14 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         </div>
       </div>
 
-      {isUser && (
-        <Avatar
-          role="user"
-          className="ml-2"
-        />
-      )}
+      <Avatar
+        role={
+          message.sender in roleMap
+            ? roleMap[message.sender as keyof typeof roleMap]
+            : 'user'
+        }
+        className="w-10 h-10 mr-4"
+      />
     </div>
   )
 }

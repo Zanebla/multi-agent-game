@@ -1,13 +1,33 @@
-// types.ts（推荐单独的类型文件）
-export type MessageStatus = 'streaming' | 'complete'
-export type RoleType = 'user' | 'pm' | 'developer' | 'system'
+export type MessageStatus = 'streaming' | 'complete' | 'error'
+export type MessageRole = 'user' | 'pm' | 'developer' | 'ui_designer' | 'system'
 
-export interface Message {
-  id: number
+export interface BaseMessage {
+  id: string
   sender: string
   content: string
   displayContent: string
-  timestamp: number
-  role: RoleType
+  role: MessageRole
   status: MessageStatus
+  timestamp: number
 }
+
+export interface SystemMessage extends BaseMessage {
+  type: 'system_status'
+  role: 'system'
+  isChunk?: never
+  isLastChunk?: never
+}
+
+export interface StreamingMessage extends BaseMessage {
+  isChunk: true
+  isLastChunk?: boolean
+  streamId: string
+}
+
+export interface NormalMessage extends BaseMessage {
+  isChunk?: false
+  isLastChunk?: never
+  streamId?: never
+}
+
+export type Message = SystemMessage | StreamingMessage | NormalMessage

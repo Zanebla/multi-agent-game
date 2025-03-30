@@ -4,7 +4,7 @@ import {
   BriefcaseIcon,
 } from '@heroicons/react/24/solid'
 interface AvatarProps {
-  role: 'user' | 'pm' | 'developer' | 'system'
+  role: 'user' | 'pm' | 'developer' | 'system' | 'ui_designer'
   className?: string
 }
 
