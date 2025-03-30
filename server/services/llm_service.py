@@ -30,8 +30,9 @@ def stream_response(
         )
         # return response.choices[0].message.content
         for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                yield content
+            if chunk.choices and chunk.choices[0].delta:  # 添加空指针检查
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
     except Exception as e:
         yield f"\n[系统错误] 生成失败: {str(e)}"
