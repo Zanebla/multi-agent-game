@@ -3,14 +3,7 @@ from typing import AsyncGenerator, List, Optional
 from services.llm_service import stream_response
 import time
 import asyncio
-
-
-class Role(BaseModel):
-    """角色定义模型"""
-    name: str
-    expertise: str
-    personality: str
-
+from .roles import Role
 
 class Agent:
     """智能体类，负责处理角色特定的响应生成"""

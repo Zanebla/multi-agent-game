@@ -23,3 +23,6 @@ class TaskNodeSchema(BaseModel):
     parent_id: str | None = None
     assigned_to: str
     status: str = "pending"
+
+class ProjectGoal(BaseModel):
+    goal: str  # 严格匹配前端参数名

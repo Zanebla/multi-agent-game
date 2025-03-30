@@ -5,7 +5,7 @@ from typing import Optional, Dict, List, AsyncGenerator, Callable
 import socketio
 import asyncio
 import logging
-from .schemas import MessageSchema
+# internal modules
 from .schemas import MessageSchema, TaskNodeSchema
 
 logger = logging.getLogger(__name__)
