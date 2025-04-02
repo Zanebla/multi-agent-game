@@ -1,24 +1,14 @@
+// external modules
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { useAgentWebSocket } from '../lib/websocket'
-import { ChatBubbleLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import axios from 'axios'
 import { io, Socket } from 'socket.io-client'
+import { CSSTransition, TransitionGroup } from 'react-transition-group'
+
+// internal modules
+import { ChatBubbleLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import MessageBubble from '../components/MessageBubble'
 import MagIcon from '../components/MagIcon'
-import { CSSTransition, TransitionGroup } from 'react-transition-group'
 import { Message } from '../types/message.types'
-
-type RoleType = 'user' | 'pm' | 'developer'
-
-// 自增ID生成器
-let messageId = 0
-const createMessage = (msg: Omit<Message, 'id'>): Message => ({
-  id: messageId++,
-  ...msg,
-  displayContent: msg.displayContent || '',
-  // status: msg.status || 'complete',
-  status: 'streaming',
-})
+import { initWebSocket, sendMessage } from '../services/websocketService'
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -31,203 +21,20 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // 流式消息处理
-  // const streamMessage = useCallback((targetId: number, fullText: string) => {
-  //   let currentIndex = 0
-  //   const interval = setInterval(() => {
-  //     setMessages((prev) =>
-  //       prev.map((msg) =>
-  //         msg.id === targetId
-  //           ? {
-  //               ...msg,
-  //               displayContent: fullText.slice(0, currentIndex),
-  //               status:
-  //                 currentIndex >= fullText.length ? 'complete' : 'streaming',
-  //             }
-  //           : msg
-  //       )
-  //     )
-
-  //     if (currentIndex++ >= fullText.length) {
-  //       clearInterval(interval)
-  //     }
-  //   }, 20)
-  // }, [])
-
-  // 初始化WebSocket连接
-  // useEffect(() => {
-  //   const newSocket = io('http://localhost:8000', {
-  //     path: '/socket.io/', // 明确指定路径
-  //     transports: ['websocket'],
-  //   })
-  //   newSocket.on('connect', () => {
-  //     console.log('Connected to WebSocket')
-  //   })
-
-  //   newSocket
-  //     .on('message', (data: any) => {
-  //       const message = typeof data === 'string' ? JSON.parse(data) : data
-
-  //       setMessages((prev) => {
-  //         const lastMsg = prev[prev.length - 1]
-
-  //         // 处理分块消息
-  //         if (message.isChunk && lastMsg?.status === 'streaming') {
-  //           return prev.map((msg) => ({
-  //             ...msg,
-  //             content: msg.content + message.content,
-  //             displayContent: msg.displayContent + message.content,
-  //           }))
-  //         }
-
-  //         // 创建新消息
-  //         const newMessage = createMessage({
-  //           sender: message.sender,
-  //           content: message.content,
-  //           displayContent: message.isChunk ? '' : message.content,
-  //           timestamp: message.timestamp || Date.now(),
-  //           role: message.role,
-  //           status: message.isChunk ? 'streaming' : 'complete',
-  //         })
-
-  //         if (message.isChunk) {
-  //           streamMessage(newMessage.id, message.content)
-  //         }
-
-  //         return [...prev, newMessage]
-  //       })
-  //     })
-  //     .on('error', (err) => console.error('Socket error:', err))
-
-  //   setSocket(newSocket)
-  //   return () => {
-  //     newSocket.disconnect()
-  //   }
-  // }, [streamMessage])
-
   useEffect(() => {
-    const newSocket = io('http://localhost:8000', {
-      path: '/socket.io/',
-      transports: ['websocket'],
-    })
-
-    newSocket.on('connect', () => {
-      console.log('Connected to WebSocket')
-    })
-
-    newSocket.on('message', (data: any) => {
-      const message = typeof data === 'string' ? JSON.parse(data) : data
-
-      setMessages((prev) => {
-        if (message.isChunk) {
-          const existingMsg = prev.find(
-            (m) =>
-              m.sender === message.sender &&
-              m.role === message.role &&
-              m.status === 'streaming'
-          )
-          if (existingMsg) {
-            return prev.map((m) =>
-              m.id === existingMsg.id
-                ? {
-                    ...m,
-                    content: m.content + message.content,
-                    displayContent: m.displayContent + message.content,
-                    status: message.isLastChunk ? 'complete' : 'streaming', // 关键修改
-                  }
-                : m
-            )
-          } else {
-            const newMsg = createMessage({
-              sender: message.sender,
-              content: message.content,
-              displayContent: '',
-              role: message.role,
-              timestamp: message.timestamp || Date.now(),
-              status: 'streaming',
-            })
-            return [...prev, newMsg]
-          }
-        } else {
-          const newMsg = createMessage({
-            sender: message.sender,
-            content: message.content,
-            displayContent: message.content,
-            role: message.role,
-            status: 'complete',
-            timestamp: message.timestamp || Date.now(),
-          })
-          return [...prev, newMsg]
-        }
-      })
-    })
-
-    newSocket.on('status', (statusData) => {
-      if (statusData.status === 'completed') {
-        setMessages((prev) =>
-          prev.map((msg) => {
-            if (msg.sender === statusData.sender) {
-              return {
-                ...msg,
-                status: 'complete',
-              }
-            }
-            return msg
-          })
-        )
-      }
-    })
-
-    newSocket.on('error', (err) => {
-      console.error('Socket error:', err)
-      setMessages((prev) => [
-        ...prev,
-        createMessage({
-          sender: '系统',
-          content: `错误: ${err.message}`,
-          displayContent: '',
-          role: 'system',
-          timestamp: Date.now(),
-          status: 'complete',
-        }),
-      ])
-    })
-
-    setSocket(newSocket)
+    const socket = initWebSocket(setMessages)
+    setSocket(socket)
     return () => {
-      newSocket.disconnect()
+      if (socket) {
+        socket.disconnect()
+      }
     }
   }, [])
 
-  // 发送消息处理
-  const handleSend = async () => {
-    if (!inputText.trim() || !socket) return
+  const handleSend = useCallback(() => {
+    sendMessage(socket, inputText, setMessages, setInputText, setIsLoading)
+  }, [socket, inputText])
 
-    // 用户消息
-    const userMessage = createMessage({
-      sender: 'user',
-      content: inputText,
-      displayContent: inputText,
-      timestamp: Date.now(),
-      role: 'user',
-      status: 'complete',
-    })
-
-    setMessages((prev) => [...prev, userMessage])
-    setInputText('')
-    setIsLoading(true)
-
-    try {
-      // 使用socket.io发送请求
-      socket.emit('start_project', { goal: inputText })
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // 输入框键盘事件
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
