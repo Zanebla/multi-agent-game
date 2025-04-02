@@ -2,6 +2,7 @@ import socketio
 import asyncio
 import time
 from typing import AsyncGenerator
+from core.roles import ROLES
 
 class WebSocketService:
     def __init__(self, sio, agents):
@@ -10,32 +11,33 @@ class WebSocketService:
 
     async def stream_agent_response(
         self,
-        agent_name: str,
+        role: str,
         prompt: str,
         sid: str,
-        sender_name: str,
-        role: str
     ) -> str:
       """
       流式生成Agent响应并实时推送消息的核心函数
 
       参数:
-      - agent_name: 要使用的Agent名称 (e.g. "product_manager")
+      - role: 角色标识 (PM/SDE)
       - prompt: 输入提示
       - sid: 客户端会话ID
-      - sender_name: 消息发送者显示名称
-      - role: 角色标识 (用于前端样式)
-
-      返回完整响应内容（非生成器）
       """
       try:
-          agent = self.agents[agent_name]
+          agent = self.agents.get(role)
+          if not agent:
+            raise ValueError(f"Agent role {role} not found")
+
+          role_config = ROLES.get(role)
+          if not role_config:
+            raise ValueError(f"Role config for {role} not found")
           full_content = ""
           last_chunk_time = time.time()
 
           await self.sio.emit('status', {
-              "sender": sender_name,
+              "sender": role,
               "status": "started",
+              "role": role,
               "timestamp": int(time.time() * 1000)
           }, room=sid)
 
@@ -43,7 +45,7 @@ class WebSocketService:
               full_content += chunk
 
               await self.sio.emit('message', {
-                  "sender": sender_name,
+                  "sender": role,
                   "content": chunk,
                   "role": role,
                   "isChunk": True,
@@ -57,7 +59,7 @@ class WebSocketService:
               last_chunk_time = current_time
 
           await self.sio.emit('status', {
-              "sender": sender_name,
+              "sender": role_config.name,
               "status": "completed",
               "role": role,
               "timestamp": int(time.time() * 1000)
@@ -65,15 +67,14 @@ class WebSocketService:
           return full_content
 
       except Exception as e:
-          error_msg = f"{sender_name}处理失败: {str(e)}"
-          # 发送错误消息
+          error_msg = f"{role.name}处理失败: {str(e)}"
           await self.sio.emit('error', {
-              "sender": "系统",
+              "sender": "SYS",
               "content": error_msg,
+              "role": "SYS",
               "timestamp": int(time.time() * 1000)
           }, room=sid)
 
-          # 重新抛出异常以便上层处理
           raise RuntimeError(error_msg) from e
         
 
@@ -85,33 +86,19 @@ class WebSocketService:
               await self.sio.emit('error', {'message': '缺少需求参数'}, room=sid)
               return
 
-          # 1. 处理产品经理的响应（调用核心函数）
-          pm_prompt = f"用户需求：{goal}\n请生成详细的需求文档"
+          pm_prompt = f"用户需求：{goal}\n请生成详细的需求文档(不用输出代码)"
           pm_response = await self.stream_agent_response(
-              "product_manager",
+              "PM",
               pm_prompt,
               sid,
-              "产品经理",
-              "pm"
           )
 
-          # 2. 处理开发者的响应（调用核心函数）
-          dev_prompt = f"根据以下需求编写代码：\n{pm_response}"
+          dev_prompt = f"根据以下需求编写代码：\n{pm_response}(注意只需要输出代码)"
           dev_response = await self.stream_agent_response(
-              "developer",
+              "SDE",
               dev_prompt,
               sid,
-              "后端工程师",
-              "developer"
           )
-
-        # 可选：发送最终结果汇总（根据需求调整）
-          await self.sio.emit('message', {
-              "sender": "系统",
-              "content": "项目处理完成",
-              "role": "system",
-              "timestamp": int(time.time() * 1000)
-          }, room=sid)
 
       except Exception as e:
           await self.sio.emit('error', {'message': str(e)}, room=sid)

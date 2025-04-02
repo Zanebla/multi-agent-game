@@ -2,16 +2,18 @@ import {
   UserCircleIcon,
   CodeBracketIcon,
   BriefcaseIcon,
+  CogIcon,
 } from '@heroicons/react/24/solid'
 interface AvatarProps {
-  role: 'user' | 'pm' | 'developer' | 'system'
+  role: 'USER' | 'PM' | 'SDE' | 'SYS'
   className?: string
 }
 
 const roleIcons = {
-  user: <UserCircleIcon className="w-8 h-8 text-amber-500" />,
-  pm: <BriefcaseIcon className="w-6 h-6 text-slate-500" />,
-  developer: <CodeBracketIcon className="w-6 h-6 text-rose-500" />,
+  USER: <UserCircleIcon className="w-8 h-8 text-amber-500" />,
+  PM: <BriefcaseIcon className="w-6 h-6 text-slate-500" />,
+  SDE: <CodeBracketIcon className="w-6 h-6 text-rose-500" />,
+  SYS: <CogIcon className="w-6 h-6 text-gray-500" />,
 }
 
 export default function Avatar({ role, className }: AvatarProps) {

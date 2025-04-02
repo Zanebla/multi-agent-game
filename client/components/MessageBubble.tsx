@@ -7,13 +7,7 @@ interface MessageBubbleProps {
 }
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.sender === 'user'
-  const roleMap = {
-    产品经理: 'pm',
-    后端工程师: 'developer',
-    user: 'user',
-    系统: 'system',
-  } as const
+  const isUser = message.role === 'USER'
 
   return (
     <div
@@ -21,7 +15,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
       {!isUser && (
         <div className="flex-shrink-0">
           <Avatar
-            role={roleMap[message.sender as keyof typeof roleMap] || 'user'}
+            role={message.role}
             className="w-10 h-10 mr-4"
           />
         </div>
@@ -32,9 +26,11 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           ${
             isUser
               ? 'bg-blue-500 text-white ml-auto'
-              : message.sender === '产品经理'
+              : message.role === 'PM'
               ? 'bg-green-100'
-              : 'bg-purple-100'
+              : message.role === 'SDE'
+              ? 'bg-purple-100'
+              : 'bg-gray-100'
           }
         ${message.status === 'streaming' ? 'animate-pulse' : ''}
         `}>
@@ -60,7 +56,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 
       {isUser && (
         <Avatar
-          role="user"
+          role="USER"
           className="ml-2"
         />
       )}

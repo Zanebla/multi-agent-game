@@ -6,16 +6,12 @@ import asyncio
 from .roles import Role
 
 class Agent:
-    """智能体类，负责处理角色特定的响应生成"""
-
     def __init__(self, role: Role):
         self.role = role
         self.memory: List[str] = []
-        self.active_stream: Optional[AsyncGenerator] = None  # 跟踪当前活动流
+        self.active_stream: Optional[AsyncGenerator] = None  
 
     def generate_prompt(self, input_text: str) -> str:
-        # memory_context = " | ".join(self.memory[-3:]) if self.memory else "无"
-        """构建角色化提示模板"""
         memory_context = "\n".join(
             self.memory[-3:]) if self.memory else "无近期对话"
         return f"""
@@ -34,8 +30,7 @@ class Agent:
         【回复要求】
         1. 使用{self.role.expertise}领域的专业术语
         2. 保持{self.role.personality}的表达风格
-        3. 结构化输出（如分点说明）
-        4. 如果你是后端工程师或developer的话则必须输出可以直接运行的代码!!这非常重要!!
+        3. 结构化输出（分点说明）
         """
 
     async def stream_response(self, input_text: str) -> AsyncGenerator[str, None]:
@@ -43,9 +38,6 @@ class Agent:
         try:
             prompt = self.generate_prompt(input_text)
             self._update_memory(f"输入接收：{input_text[:50]}...")
-
-            # full_response = ""
-            # start_time = time.time()
             start_time = time.monotonic()
             chunk_count = 0
 
@@ -61,11 +53,6 @@ class Agent:
                 # 动态速度控制（快开头慢收尾）
                 await self._adjust_speed(start_time, chunk_count)
 
-                # # 每500ms更新一次记忆
-                # if (time.time() - start_time) > 0.5:
-                #     self._update_memory(f"生成中：{chunk}")
-                #     start_time = time.time()
-
             self._update_memory(f"回复完成: {chunk_count}个片段")
 
         except Exception as e:
@@ -73,26 +60,13 @@ class Agent:
             yield f"\n⚠️ {self.role.name}响应异常: {str(e)}"
             raise
 
-    # def _update_memory(self, content: str):
-    #     """优化记忆管理"""
-    #     if len(self.memory) >= 10:  # 限制最大记忆长度
-    #         self.memory.pop(0)
-    #     self.memory.append(f"[{time.strftime('%H:%M:%S')}] {content}")
-
-    # async def _async_stream_wrapper(self, prompt: str):
-    #     """将同步生成器转换为异步"""
-    #     for chunk in stream_response(prompt):
-    #         yield chunk
-    #         await asyncio.sleep(0)  # 让出事件循环
-
     def _update_memory(self, content: str):
         """优化记忆存储策略"""
         timestamp = time.strftime("%m/%d %H:%M")
         entry = f"[{timestamp}] {self.role.name} - {content}"
 
-        # 滚动存储（最大保留10条）
         if len(self.memory) >= 10:
-            self.memory = self.memory[2:]  # 移除最旧的两条
+            self.memory = self.memory[2:]  
         self.memory.append(entry)
 
     async def _async_stream_wrapper(self, prompt: str) -> AsyncGenerator[str, None]:
@@ -101,7 +75,6 @@ class Agent:
         for chunk in stream_response(prompt):  # 假设stream_response是同步生成器
             buffer.append(chunk)
 
-            # 按句子拆分优化显示
             if any(c in chunk for c in ('。', '!', '?', '\n')):
                 yield ''.join(buffer)
                 buffer.clear()

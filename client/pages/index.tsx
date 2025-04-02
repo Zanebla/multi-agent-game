@@ -70,12 +70,6 @@ export default function Chat() {
       <div
         style={{ height: '72vh' }}
         className="flex-1 overflow-y-auto p-6 bg-slate-800 rounded-lg mb-5">
-        {/* {messages.map((msg, i) => (
-          <MessageBubble
-            key={i}
-            message={msg}
-          />
-        ))} */}
         <TransitionGroup component={null}>
           {messages.map((msg) => (
             <CSSTransition

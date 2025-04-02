@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client'
 import { Message } from '../types/message.types'
+import { symlinkSync } from 'fs'
 
 let messageId = 0
 export const createMessage = (msg: Omit<Message, 'id'>): Message => ({
@@ -23,7 +24,6 @@ export const initWebSocket = (
       const message = typeof data === 'string' ? JSON.parse(data) : data
 
       setMessages((prev) => {
-        // const lastMsg = prev[prev.length - 1]
         if (message.isChunk) {
           const existingMsg = prev.find(
             (m) =>
@@ -68,14 +68,18 @@ export const initWebSocket = (
     })
 
     .on('error', (err) => {
-      console.error('Socket error:', err)
+      console.error('Socket error details:', {
+        message: err.message,
+        stack: err.stack,
+        rawError: err,
+      })
       setMessages((prev) => [
         ...prev,
         createMessage({
-          sender: '系统',
-          content: `错误: ${err.message}`,
+          sender: 'SYS',
+          content: `系统错误: ${err.message}`,
           displayContent: '',
-          role: 'system',
+          role: 'SYS',
           timestamp: Date.now(),
           status: 'complete',
         }),
@@ -95,11 +99,11 @@ export const sendMessage = (
   if (!content.trim() || !socket) return
 
   const userMessage = createMessage({
-    sender: 'user',
+    sender: 'USER',
     content,
     displayContent: content,
     timestamp: Date.now(),
-    role: 'user',
+    role: 'USER',
     status: 'complete',
   })
 
