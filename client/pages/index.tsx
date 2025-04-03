@@ -6,7 +6,6 @@ import { CSSTransition, TransitionGroup } from 'react-transition-group'
 // internal modules
 import { ChatBubbleLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import MessageBubble from '../components/MessageBubble'
-import MagIcon from '../components/MagIcon'
 import { Message } from '../types/message.types'
 import { initWebSocket, sendMessage } from '../services/websocketService'
 
@@ -47,7 +46,6 @@ export default function Chat() {
       {/* 页面顶部标题 */}
       <header className="mb-5">
         <div className="flex perspective-1000 justify-center items-center gap-2">
-          <MagIcon />
           <a
             href="https://github.com/Zanebla"
             target="_blank"
