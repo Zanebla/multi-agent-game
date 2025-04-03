@@ -1,12 +1,16 @@
 import Avatar from './Avatar'
 import { Message } from '../types/message.types'
-import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { PlayIcon } from '@heroicons/react/24/outline'
 
 interface MessageBubbleProps {
   message: Message
+  onRunCode?: () => void
 }
 
-export default function MessageBubble({ message }: MessageBubbleProps) {
+export default function MessageBubble({
+  message,
+  onRunCode,
+}: MessageBubbleProps) {
   const isUser = message.role === 'USER'
 
   return (
@@ -16,7 +20,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         <div className="flex-shrink-0">
           <Avatar
             role={message.role}
-            className="w-10 h-10 mr-4"
+            className="w-10 h-10 mr-4 rounded-full border-2 border-blue-500"
           />
         </div>
       )}
@@ -27,19 +31,13 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             isUser
               ? 'bg-blue-500 text-white ml-auto'
               : message.role === 'PM'
-              ? 'bg-green-100'
+              ? 'bg-gold'
               : message.role === 'SDE'
-              ? 'bg-purple-100'
+              ? 'bg-pink'
               : 'bg-gray-100'
           }
         ${message.status === 'streaming' ? 'animate-pulse' : ''}
         `}>
-        {/* 流式传输指示器 */}
-        {message.status === 'streaming' && (
-          <div className="absolute -top-2 right-2">
-            <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-500" />
-          </div>
-        )}
         <div className="font-semibold text-sm mb-1">{message.sender}</div>
         <pre className="whitespace-pre-wrap break-words font-sans">
           {message.status === 'streaming'
@@ -57,7 +55,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
       {isUser && (
         <Avatar
           role="USER"
-          className="ml-2"
+          className="ml-2 rounded-full border-2 border-blue-500"
         />
       )}
     </div>

@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client'
 import { Message } from '../types/message.types'
-import { symlinkSync } from 'fs'
 
 let messageId = 0
 export const createMessage = (msg: Omit<Message, 'id'>): Message => ({
@@ -11,7 +10,9 @@ export const createMessage = (msg: Omit<Message, 'id'>): Message => ({
 })
 
 export const initWebSocket = (
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
+  onFullCodeReceived: (code: string) => void,
+  setIsLoading: (loading: boolean) => void
 ): Socket => {
   const socket = io('http://localhost:8000', {
     path: '/socket.io/',
@@ -67,6 +68,23 @@ export const initWebSocket = (
       })
     })
 
+    .on('full_code', (data: { code: string }) => {
+      onFullCodeReceived(data.code)
+      setIsLoading(false)
+      setMessages((prev) => [
+        ...prev,
+        createMessage({
+          sender: 'SYS',
+          content: '代码已生成，点击运行按钮查看结果',
+          displayContent:
+            'The code has been generated. Click the Start Game to try it out.',
+          role: 'SYS',
+          timestamp: Date.now(),
+          status: 'complete',
+        }),
+      ])
+    })
+
     .on('error', (err) => {
       console.error('Socket error details:', {
         message: err.message,
@@ -115,7 +133,6 @@ export const sendMessage = (
     socket.emit('start_project', { goal: content })
   } catch (error) {
     console.error('Error:', error)
-  } finally {
     setIsLoading(false)
   }
 }

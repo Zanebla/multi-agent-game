@@ -1,3 +1,4 @@
+import React from 'react'
 import styles from './loader.module.css'
 
 interface GlobalLoaderProps {
@@ -9,7 +10,7 @@ export default function GlobalLoader({ isLoading }: GlobalLoaderProps) {
 
   return (
     <div className="fixed top-4 right-4 z-[9999]">
-      <div className="loader"></div>
+      <div className={styles.loader}></div>
     </div>
   )
 }

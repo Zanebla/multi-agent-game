@@ -4,12 +4,18 @@ import { io, Socket } from 'socket.io-client'
 import { CSSTransition, TransitionGroup } from 'react-transition-group'
 
 // internal modules
-import { ChatBubbleLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import {
+  ChatBubbleLeftIcon,
+  ArrowPathIcon,
+  PlayIcon,
+} from '@heroicons/react/24/outline'
 import MessageBubble from '../components/MessageBubble'
 import { Message } from '../types/message.types'
 import { initWebSocket, sendMessage } from '../services/websocketService'
+import GlobalLoader from '../components/GlobalLoader'
 
 export default function Chat() {
+  const [fullCode, setFullCode] = useState<string>('')
   const [messages, setMessages] = useState<Message[]>([])
   const [inputText, setInputText] = useState('')
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -21,7 +27,13 @@ export default function Chat() {
   }, [messages])
 
   useEffect(() => {
-    const socket = initWebSocket(setMessages)
+    const socket = initWebSocket(
+      setMessages,
+      (code) => {
+        setFullCode(code)
+      },
+      setIsLoading
+    )
     setSocket(socket)
     return () => {
       if (socket) {
@@ -43,6 +55,7 @@ export default function Chat() {
 
   return (
     <div className="container mx-auto p-4">
+      <GlobalLoader isLoading={isLoading} />
       {/* 页面顶部标题 */}
       <header className="mb-5">
         <div className="flex perspective-1000 justify-center items-center gap-2">
@@ -50,16 +63,15 @@ export default function Chat() {
             href="https://github.com/Zanebla"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-4xl font-bold italic tracking-wide text-amber-400 hover:text-amber-600 transition-colors duration-200">
-            Zanebla
+            className="text-4xl font-bold tracking-wide text-white hover:shadow-xl hover:bg-gold transition duration-300 ease-in-out }>">
+            Zanebla's
           </a>
-          <span className="text-4xl font-bold text-gray-600">/</span>
           <a
             href="https://github.com/Zanebla/multi-agent-game/tree/dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-4xl font-bold italic tracking-wide text-rose-400 hover:text-rose-600 transition-colors duration-200">
-            MAG
+            className="text-4xl font-bold  tracking-wide text-white hover:shadow-xl hover:bg-pink transition duration-300 ease-in-out">
+            Multi-Agent-Game(MAG)
           </a>
         </div>
       </header>
@@ -67,7 +79,7 @@ export default function Chat() {
       {/* 消息展示区 */}
       <div
         style={{ height: '72vh' }}
-        className="flex-1 overflow-y-auto p-6 bg-slate-800 rounded-lg mb-5">
+        className="flex-1 overflow-y-auto p-6 bg-main rounded-lg mb-5 border-4 border-black">
         <TransitionGroup component={null}>
           {messages.map((msg) => (
             <CSSTransition
@@ -89,11 +101,10 @@ export default function Chat() {
       <div className="flex gap-2">
         <div className=" mx-auto flex gap-3">
           <textarea
-            // ref={inputRef}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyPress}
-            placeholder="Paint your dreams, my boss"
+            placeholder="Just enter your fantasy about the game..."
             className="w-96 flex-1 p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-rose-900"
             rows={2}
             disabled={isLoading}
@@ -109,6 +120,20 @@ export default function Chat() {
               </span>
             )}
           </button>
+          {fullCode && (
+            <button
+              onClick={() => {
+                const gameWindow = window.open('', '_blank')
+                if (gameWindow) {
+                  gameWindow.document.write(fullCode)
+                  gameWindow.document.close()
+                }
+              }}
+              className="w-36 px-4 py-2 flex justify-center items-center bg-green-600 text-white rounded hover:bg-green-500">
+              <PlayIcon className="w-5 h-10 animate-spin mx-0.5" />
+              Start Game
+            </button>
+          )}
         </div>
       </div>
     </div>

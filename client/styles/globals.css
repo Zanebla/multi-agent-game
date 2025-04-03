@@ -7,10 +7,10 @@
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-rose-100;
+  @apply bg-main rounded-full;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-rose-400;
+  @apply bg-black rounded-full;
 }
 
 body {

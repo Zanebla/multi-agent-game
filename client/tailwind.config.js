@@ -10,8 +10,10 @@ module.exports = {
         scale: 'transform',
       },
       colors: {
-        // 如果需要默认的所有颜色，可以这样配置
         ...require('tailwindcss/colors'),
+        gold: '#FFD700',
+        pink: '#FFC0CB',
+        main: '#052f9c',
       },
     },
   },
