@@ -1,12 +1,16 @@
 import Avatar from './Avatar'
 import { Message } from '../types/message.types'
-import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { PlayIcon } from '@heroicons/react/24/outline'
 
 interface MessageBubbleProps {
   message: Message
+  onRunCode?: () => void
 }
 
-export default function MessageBubble({ message }: MessageBubbleProps) {
+export default function MessageBubble({
+  message,
+  onRunCode,
+}: MessageBubbleProps) {
   const isUser = message.role === 'USER'
 
   return (
@@ -16,7 +20,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         <div className="flex-shrink-0">
           <Avatar
             role={message.role}
-            className="w-10 h-10 mr-4"
+            className="w-10 h-10 mr-4 rounded-full"
           />
         </div>
       )}
@@ -35,11 +39,11 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         ${message.status === 'streaming' ? 'animate-pulse' : ''}
         `}>
         {/* 流式传输指示器 */}
-        {message.status === 'streaming' && (
+        {/* {message.status === 'streaming' && (
           <div className="absolute -top-2 right-2">
             <ArrowPathIcon className="w-4 h-4 animate-spin text-gray-500" />
           </div>
-        )}
+        )} */}
         <div className="font-semibold text-sm mb-1">{message.sender}</div>
         <pre className="whitespace-pre-wrap break-words font-sans">
           {message.status === 'streaming'
@@ -52,12 +56,24 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           }`}>
           {new Date(message.timestamp).toLocaleTimeString()}
         </div>
+
+        {/* 在SDE消息底部添加运行按钮 */}
+        {message.role === 'SDE' && onRunCode && (
+          <div className="mt-2 flex justify-end">
+            <button
+              onClick={onRunCode}
+              className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white text-sm rounded-full hover:bg-green-500">
+              <PlayIcon className="w-3 h-3" />
+              运行代码
+            </button>
+          </div>
+        )}
       </div>
 
       {isUser && (
         <Avatar
           role="USER"
-          className="ml-2"
+          className="ml-2 rounded-full"
         />
       )}
     </div>

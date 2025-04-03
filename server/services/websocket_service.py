@@ -93,13 +93,29 @@ class WebSocketService:
               sid,
           )
 
-          dev_prompt = f"根据以下需求编写代码：\n{pm_response}(注意只需要输出代码)"
+          dev_prompt = f"""
+          根据以下需求编写代码：
+          {pm_response}
+          输出要求：
+          输出要求：
+          1. 输出完整的HTML文件，包含<!DOCTYPE html>声明
+          2. 必须包含<style>标签内的CSS和<script>标签内的JS
+          3. 不要包含任何解释性文字
+          4. 确保代码可直接在浏览器中运行
+          5. 提供默认的页面标题和基本布局
+          """
           dev_response = await self.stream_agent_response(
               "SDE",
               dev_prompt,
               sid,
           )
 
+        # 发送完整代码给前端
+          await self.sio.emit('full_code', {
+              'code': dev_response,
+              'role': 'SDE'
+          }, room=sid)
+          
       except Exception as e:
           await self.sio.emit('error', {'message': str(e)}, room=sid)
 

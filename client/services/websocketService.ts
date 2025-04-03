@@ -11,7 +11,8 @@ export const createMessage = (msg: Omit<Message, 'id'>): Message => ({
 })
 
 export const initWebSocket = (
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
+  setFullCode: React.Dispatch<React.SetStateAction<string>>
 ): Socket => {
   const socket = io('http://localhost:8000', {
     path: '/socket.io/',
@@ -67,6 +68,21 @@ export const initWebSocket = (
       })
     })
 
+    .on('full_code', (data: { code: string }) => {
+      setFullCode(data.code)
+      setMessages((prev) => [
+        ...prev,
+        createMessage({
+          sender: 'SYS',
+          content: '代码已生成，点击运行按钮查看结果',
+          displayContent: '',
+          role: 'SYS',
+          timestamp: Date.now(),
+          status: 'complete',
+        }),
+      ])
+    })
+
     .on('error', (err) => {
       console.error('Socket error details:', {
         message: err.message,
@@ -95,7 +111,7 @@ export const sendMessage = (
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
   setInputText: (text: string) => void,
   setIsLoading: (loading: boolean) => void
-) => {
+): Promise<void> => {
   if (!content.trim() || !socket) return
 
   const userMessage = createMessage({

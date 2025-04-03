@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client'
 import { CSSTransition, TransitionGroup } from 'react-transition-group'
 
 // internal modules
+import GlobalLoader from '../components/GlobalLoader'
 import { ChatBubbleLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import MessageBubble from '../components/MessageBubble'
 import MagIcon from '../components/MagIcon'
@@ -15,14 +16,25 @@ export default function Chat() {
   const [inputText, setInputText] = useState('')
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [fullCode, setFullCode] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [waitingForResponse, setWaitingForResponse] = useState(false)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   useEffect(() => {
-    const socket = initWebSocket(setMessages)
+    const socket = initWebSocket((prevMessages: Message[]) => {
+      return (msg: Message) => {
+        // 添加msg参数
+        const newMessages = [...prevMessages, msg]
+        if (msg.role === 'SYS') {
+          setWaitingForResponse(false)
+        }
+        return newMessages
+      }
+    }, setFullCode)
     setSocket(socket)
     return () => {
       if (socket) {
@@ -31,8 +43,35 @@ export default function Chat() {
     }
   }, [])
 
-  const handleSend = useCallback(() => {
-    sendMessage(socket, inputText, setMessages, setInputText, setIsLoading)
+  const runCode = useCallback(() => {
+    if (!fullCode) return
+
+    // 去除代码块标记
+    let cleanCode = fullCode
+      .replace(/```html/g, '') // 去除开始标记
+      .replace(/```/g, '') // 去除结束标记
+      .trim() // 去除前后空格
+
+    const newWindow = window.open('', '_blank')
+    newWindow?.document.write(cleanCode)
+    newWindow?.document.close()
+  }, [fullCode])
+
+  const handleSend = useCallback(async () => {
+    setWaitingForResponse(true)
+    try {
+      await sendMessage(
+        socket,
+        inputText,
+        setMessages,
+        setInputText,
+        setIsLoading
+      )
+    } catch (error) {
+      console.error('发送消息失败:', error)
+    } finally {
+      setWaitingForResponse(false)
+    }
   }, [socket, inputText])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -44,6 +83,7 @@ export default function Chat() {
 
   return (
     <div className="container mx-auto p-4">
+      <GlobalLoader isLoading={waitingForResponse} />
       {/* 页面顶部标题 */}
       <header className="mb-5">
         <div className="flex perspective-1000 justify-center items-center gap-2">
@@ -86,6 +126,17 @@ export default function Chat() {
           style={{ height: 0 }}
         />
       </div>
+
+      {/* 新增运行按钮 */}
+      {fullCode && (
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={runCode}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500">
+            运行代码
+          </button>
+        </div>
+      )}
 
       {/* 输入控制区 */}
       <div className="flex gap-2">

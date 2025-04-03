@@ -13,7 +13,7 @@ ROLES = {
     ),
     "SDE": Role(
         name="SDE",
-        expertise="软件开发",
+        expertise="代码编写",
         personality="逻辑性强"
     )
 }
