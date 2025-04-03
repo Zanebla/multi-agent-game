@@ -24,6 +24,11 @@ export const initWebSocket = (
     .on('message', (data: any) => {
       const message = typeof data === 'string' ? JSON.parse(data) : data
 
+      // 添加消息类型过滤
+      if (message.sender === 'SYS' && message.content === '') {
+        return
+      }
+
       setMessages((prev) => {
         if (message.isChunk) {
           const existingMsg = prev.find(

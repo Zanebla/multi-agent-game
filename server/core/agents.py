@@ -8,20 +8,13 @@ from .roles import Role
 class Agent:
     def __init__(self, role: Role):
         self.role = role
-        self.memory: List[str] = []
         self.active_stream: Optional[AsyncGenerator] = None  
 
     def generate_prompt(self, input_text: str) -> str:
-        memory_context = "\n".join(
-            self.memory[-3:]) if self.memory else "无近期对话"
         return f"""
         【角色设定】
         您是一个专业的{self.role.name}，擅长{self.role.expertise}。
         性格特征：{self.role.personality}
-        
-        【对话背景】
-        近期对话记录：
-        {memory_context}
         
         【当前任务】
         请根据以下输入生成符合角色的回复：

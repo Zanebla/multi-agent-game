@@ -8,6 +8,7 @@ class WebSocketService:
     def __init__(self, sio, agents):
         self.sio = sio
         self.agents = agents
+        self.session_memory = {} 
 
     async def stream_agent_response(
         self,
@@ -31,6 +32,18 @@ class WebSocketService:
           role_config = ROLES.get(role)
           if not role_config:
             raise ValueError(f"Role config for {role} not found")
+
+          # 发送开始状态前先清空可能存在的旧消息
+          await self.sio.emit('message', {
+            "sender": role,
+            "content": "",
+            "role": role,
+            "isChunk": False,
+            "isLastChunk": False,
+            "timestamp": int(time.time() * 1000)
+        }, room=sid)
+          await asyncio.sleep(0.1)  # 确保清空消息被处理
+
           full_content = ""
           last_chunk_time = time.time()
 
@@ -42,6 +55,8 @@ class WebSocketService:
           }, room=sid)
 
           async for chunk in agent.stream_response(prompt):
+              if not chunk.strip():  # 过滤空内容
+                continue
               full_content += chunk
 
               await self.sio.emit('message', {
@@ -86,10 +101,24 @@ class WebSocketService:
               await self.sio.emit('error', {'message': '缺少需求参数'}, room=sid)
               return
 
-          pm_prompt = f"用户需求：{goal}\n请生成详细的需求文档(不用输出代码)"
+          # 初始化或获取当前会话的记忆
+          if sid not in self.session_memory:
+              self.session_memory[sid] = []
+        
+          # 构建包含历史记忆的提示
+          memory_context = "\n".join(self.session_memory[sid][-5:]) if self.session_memory[sid] else "无历史对话"
+          full_prompt = f"""
+            历史对话:
+            {memory_context}
+            
+            用户需求:
+            {goal}
+            请生成详细的需求文档(不用输出代码)
+            """
+
           pm_response = await self.stream_agent_response(
               "PM",
-              pm_prompt,
+              full_prompt,
               sid,
           )
 
@@ -109,6 +138,14 @@ class WebSocketService:
               dev_prompt,
               sid,
           )
+
+          # 保存当前轮次的对话到记忆
+          self.session_memory[sid].extend([
+                f"用户: {goal}",
+                f"产品经理: {pm_response}",
+                # f"程序员: {dev_response}"
+            ])
+
           await self.sio.emit('full_code', {
                'code': dev_response,
                'role': 'SDE'
