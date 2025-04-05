@@ -9,4 +9,5 @@ export interface Message {
   timestamp: number
   role: RoleType
   status: MessageStatus
+  conversationId: string
 }

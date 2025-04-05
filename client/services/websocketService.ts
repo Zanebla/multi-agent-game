@@ -30,7 +30,8 @@ export const initWebSocket = (
             (m) =>
               m.sender === message.sender &&
               m.role === message.role &&
-              m.status === 'streaming'
+              m.status === 'streaming' &&
+              m.conversationId === message.conversationId
           )
           if (existingMsg) {
             return prev.map((m) =>
@@ -40,6 +41,7 @@ export const initWebSocket = (
                     content: m.content + message.content,
                     displayContent: m.displayContent + message.content,
                     status: message.isLastChunk ? 'complete' : 'streaming',
+                    conversationId: message.conversationId,
                   }
                 : m
             )
@@ -47,10 +49,11 @@ export const initWebSocket = (
             const newMessage = createMessage({
               sender: message.sender,
               content: message.content,
-              displayContent: '',
+              displayContent: message.content,
               role: message.role,
               timestamp: message.timestamp || Date.now(),
               status: 'streaming',
+              conversationId: message.conversationId,
             })
             return [...prev, newMessage]
           }
@@ -62,6 +65,7 @@ export const initWebSocket = (
             role: message.role,
             status: 'complete',
             timestamp: message.timestamp || Date.now(),
+            conversationId: message.conversationId || '',
           })
           return [...prev, newMessage]
         }
@@ -82,6 +86,7 @@ export const initWebSocket = (
           role: 'SYS',
           timestamp: Date.now(),
           status: 'complete',
+          conversationId: '',
         }),
       ])
     })
@@ -101,6 +106,7 @@ export const initWebSocket = (
           role: 'SYS',
           timestamp: Date.now(),
           status: 'complete',
+          conversationId: '',
         }),
       ])
     })
@@ -124,6 +130,7 @@ export const sendMessage = (
     timestamp: Date.now(),
     role: 'USER',
     status: 'complete',
+    conversationId: '',
   })
 
   setMessages((prev) => [...prev, userMessage])

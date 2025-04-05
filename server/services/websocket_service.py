@@ -6,18 +6,20 @@ from typing import AsyncGenerator
 import markdown
 # internal modules
 from core.roles import ROLES
-
+import uuid
 
 class WebSocketService:
     def __init__(self, sio, agents):
         self.sio = sio
         self.agents = agents
+        self.last_round: Dict[str, str] = {}
 
     async def stream_agent_response(
         self,
         role: str,
         prompt: str,
         sid: str,
+        conversation_id : str
     ) -> str:
       """
       流式生成Agent响应并实时推送消息的核心函数
@@ -42,7 +44,8 @@ class WebSocketService:
               "sender": role,
               "status": "started",
               "role": role,
-              "timestamp": int(time.time() * 1000)
+              "timestamp": int(time.time() * 1000),
+              "conversationId" : conversation_id
           }, room=sid)
 
           async for chunk in agent.stream_response(prompt):
@@ -55,6 +58,7 @@ class WebSocketService:
                   "isChunk": True,
                   "isLastChunk": False,
                   "timestamp": int(time.time() * 1000),
+                  "conversationId" : conversation_id
               }, room=sid)
 
               current_time = time.time()
@@ -66,17 +70,19 @@ class WebSocketService:
               "sender": role_config.name,
               "status": "completed",
               "role": role,
-              "timestamp": int(time.time() * 1000)
+              "timestamp": int(time.time() * 1000),
+              "conversationId" : conversation_id
           }, room=sid)
           return full_content
 
       except Exception as e:
-          error_msg = f"{role.name}处理失败: {str(e)}"
+          error_msg = f"{role}处理失败: {str(e)}"
           await self.sio.emit('error', {
               "sender": "SYS",
               "content": error_msg,
               "role": "SYS",
-              "timestamp": int(time.time() * 1000)
+              "timestamp": int(time.time() * 1000),
+              "conversationId" : conversation_id
           }, room=sid)
 
           raise RuntimeError(error_msg) from e
@@ -90,11 +96,24 @@ class WebSocketService:
               await self.sio.emit('error', {'message': '缺少需求参数'}, room=sid)
               return
 
-          pm_prompt = f"用户需求：{goal}\n请生成详细的需求文档(不用输出代码)"
+          # 生成唯一对话ID
+          conversation_id = str(uuid.uuid4())
+
+          context = ""
+          if self.last_round:
+                context = f"""
+                上一轮对话记录：
+                用户: {self.last_round.get('user', '')}
+                PM: {self.last_round.get('pm', '')}
+                SDE: {self.last_round.get('sde', '')}
+                """
+
+          pm_prompt = f"{context}\n用户需求：{goal}\n请生成详细的需求文档(不用输出代码)"
           pm_response = await self.stream_agent_response(
               "PM",
               pm_prompt,
               sid,
+              conversation_id
           )
 
           dev_prompt = f"""
@@ -112,7 +131,15 @@ class WebSocketService:
               "SDE",
               dev_prompt,
               sid,
+              conversation_id
           )
+
+          self.last_round = {
+              'user': goal,
+              'pm': pm_response,
+              'sde': dev_response
+          }
+
           await self.sio.emit('full_code', {
                'code': dev_response,
                'role': 'SDE'
@@ -129,4 +156,5 @@ class WebSocketService:
 
     async def handle_disconnect(self, sid):
         """断开事件处理"""
+        self.last_round = {}
         print(f"客户端 {sid} 已断开")

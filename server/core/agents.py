@@ -40,7 +40,6 @@ class Agent:
                 await self._adjust_speed(start_time, chunk_count)
 
         except Exception as e:
-            self._update_memory(f"生成失败：{str(e)}")
             yield f"\n⚠️ {self.role.name}响应异常: {str(e)}"
             raise
 
