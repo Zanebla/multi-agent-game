@@ -1,6 +1,6 @@
 import Avatar from './Avatar'
 import { Message } from '../types/message.types'
-import { PlayIcon } from '@heroicons/react/24/outline'
+import ReactMarkdown from 'react-markdown'
 
 interface MessageBubbleProps {
   message: Message
@@ -39,11 +39,13 @@ export default function MessageBubble({
         ${message.status === 'streaming' ? 'animate-pulse' : ''}
         `}>
         <div className="font-semibold text-sm mb-1">{message.sender}</div>
-        <pre className="whitespace-pre-wrap break-words font-sans">
-          {message.status === 'streaming'
-            ? message.displayContent
-            : message.content}
-        </pre>
+        <div className="whitespace-pre-wrap break-words font-sans">
+          {message.status === 'streaming' ? (
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          ) : (
+            message.content
+          )}
+        </div>
         <div
           className={`text-xs mt-2 ${
             isUser ? 'text-blue-100' : 'text-gray-500'

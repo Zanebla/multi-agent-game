@@ -75,7 +75,8 @@ export const initWebSocket = (
         ...prev,
         createMessage({
           sender: 'SYS',
-          content: '代码已生成，点击运行按钮查看结果',
+          content:
+            'The code has been generated. Click the Start Game to try it out.',
           displayContent:
             'The code has been generated. Click the Start Game to try it out.',
           role: 'SYS',

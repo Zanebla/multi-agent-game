@@ -1,8 +1,12 @@
+# external modules
 import socketio
 import asyncio
 import time
 from typing import AsyncGenerator
+import markdown
+# internal modules
 from core.roles import ROLES
+
 
 class WebSocketService:
     def __init__(self, sio, agents):
@@ -50,7 +54,7 @@ class WebSocketService:
                   "role": role,
                   "isChunk": True,
                   "isLastChunk": False,
-                  "timestamp": int(time.time() * 1000)
+                  "timestamp": int(time.time() * 1000),
               }, room=sid)
 
               current_time = time.time()

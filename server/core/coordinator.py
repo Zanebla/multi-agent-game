@@ -26,7 +26,6 @@ class Coordinator:
     async def post_message(self, message: Message):
         """异步处理消息"""
         self.message_queue.append(message)
-        self.conversation_log.append(message)
 
         # 立即触发分发
         await self.distribute_messages()
