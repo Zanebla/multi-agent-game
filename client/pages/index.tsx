@@ -3,6 +3,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { CSSTransition, TransitionGroup } from 'react-transition-group'
 
+// 单元测试
+// 用户体验
+// 打分维度，对比openai和deepseek，请3到5位用户测试。。。
+// 生成内容，演示，两个系统的效果
+
 // internal modules
 import {
   ChatBubbleLeftIcon,
@@ -21,6 +26,9 @@ export default function Chat() {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [selectedModel, setSelectedModel] = useState<'gpt-4o' | 'deepseek-v3'>(
+    'gpt-4o'
+  )
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -43,8 +51,15 @@ export default function Chat() {
   }, [])
 
   const handleSend = useCallback(() => {
-    sendMessage(socket, inputText, setMessages, setInputText, setIsLoading)
-  }, [socket, inputText])
+    sendMessage(
+      socket,
+      inputText,
+      setMessages,
+      setInputText,
+      setIsLoading,
+      selectedModel
+    )
+  }, [socket, inputText, selectedModel])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -100,6 +115,13 @@ export default function Chat() {
       {/* 输入控制区 */}
       <div className="flex gap-2">
         <div className=" mx-auto flex gap-3">
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value as any)}
+            className="w-32 px-4 py-2 bg-gray-700 text-white rounded">
+            <option value="gpt-4o">GPT-4o</option>
+            <option value="deepseek-v3">DeepSeek V3</option>
+          </select>
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}

@@ -119,7 +119,8 @@ export const sendMessage = (
   content: string,
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
   setInputText: (text: string) => void,
-  setIsLoading: (loading: boolean) => void
+  setIsLoading: (loading: boolean) => void,
+  model: 'gpt-4o' | 'deepseek-v3' = 'gpt-4o'
 ) => {
   if (!content.trim() || !socket) return
 
@@ -138,7 +139,7 @@ export const sendMessage = (
   setIsLoading(true)
 
   try {
-    socket.emit('start_project', { goal: content })
+    socket.emit('start_project', { goal: content, model: model })
   } catch (error) {
     console.error('Error:', error)
     setIsLoading(false)

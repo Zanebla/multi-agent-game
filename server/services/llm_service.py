@@ -3,24 +3,37 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from typing import Optional
 import time
+from enum import Enum
 
 load_dotenv()
 load_dotenv(override=True)
-api_key = os.getenv('OPENAI_API_KEY')
 
-client = OpenAI(
-    base_url='https://xiaoai.plus/v1',
-    api_key=api_key
-)
+class LLMProvider(Enum):
+    OPENAI = "openai"
+    DEEPSEEK = "deepseek"
 
+def get_client(provider: LLMProvider):
+    if provider == LLMProvider.DEEPSEEK:
+        return OpenAI(
+            base_url="https://ark.cn-beijing.volces.com/api/v3",
+            api_key=os.getenv("ARK_API_KEY")
+        )
+    else:
+        return OpenAI(
+            base_url='https://xiaoai.plus/v1',
+            api_key=os.getenv('OPENAI_API_KEY')
+        )
 
 def stream_response(
     prompt: str,
-    model: str = "gpt-4o",
-    max_tokens: int = 2000
-    # ) -> Optional[str]:
+    model: str = None,
+    max_tokens: int = 4000,
+    provider: LLMProvider = LLMProvider.OPENAI
 ):
     try:
+        client = get_client(provider)
+        if model is None:
+            model = "deepseek-v3-250324" if provider == LLMProvider.DEEPSEEK else "gpt-4o"
         stream = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
@@ -28,9 +41,8 @@ def stream_response(
             stream=True,
             temperature=0.7
         )
-        # return response.choices[0].message.content
         for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta:  # 添加空指针检查
+            if chunk.choices and chunk.choices[0].delta:
                 content = chunk.choices[0].delta.content
                 if content:
                     yield content

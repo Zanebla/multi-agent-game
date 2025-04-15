@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import AsyncGenerator, Optional
-from services.llm_service import stream_response
+from services.llm_service import stream_response, LLMProvider
 import time
 import asyncio
 from .roles import Role
@@ -33,7 +33,7 @@ class Agent:
             start_time = time.monotonic()
             chunk_count = 0
 
-            async for chunk in self._async_stream_wrapper(prompt):
+            async for chunk in self._async_stream_wrapper(prompt, self.provider):
                 yield chunk
                 chunk_count += 1
 
@@ -43,10 +43,10 @@ class Agent:
             yield f"\n⚠️ {self.role.name}响应异常: {str(e)}"
             raise
 
-    async def _async_stream_wrapper(self, prompt: str) -> AsyncGenerator[str, None]:
+    async def _async_stream_wrapper(self, prompt: str, provider: LLMProvider) -> AsyncGenerator[str, None]:
         """异步流式生成适配器"""
         buffer = []
-        for chunk in stream_response(prompt):  # 假设stream_response是同步生成器
+        for chunk in stream_response(prompt, provider=provider):  # 假设stream_response是同步生成器
             buffer.append(chunk)
 
             if any(c in chunk for c in ('。', '!', '?', '\n')):

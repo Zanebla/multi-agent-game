@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyberpunk Snake</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(to bottom, #0d0221, #1a0933);
+      font-family: 'Press Start 2P', cursive;
+      color: #00ff41;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+    }
+
+    #game-canvas {
+      border: 2px solid rgba(0, 247, 255, 0.5);
+      box-shadow: 0 0 10px rgba(0, 247, 255, 0.7);
+    }
+
+    #score-display {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      text-shadow: 0 0 5px #00ff41;
+    }
+
+    #start-screen,
+    #game-over-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(13, 2, 33, 0.8);
+      z-index: 10;
+    }
+
+    .title {
+      font-size: 32px;
+      margin-bottom: 30px;
+      text-shadow: 0 0 10px #00f7ff;
+      animation: pulse 2s infinite;
+    }
+
+    .button {
+      padding: 10px 20px;
+      background: transparent;
+      border: 2px solid #00f7ff;
+      color: #00f7ff;
+      font-family: 'Press Start 2P', cursive;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 0 10px rgba(0, 247, 255, 0.5);
+    }
+
+    .button:hover {
+      background: rgba(0, 247, 255, 0.2);
+      box-shadow: 0 0 15px rgba(0, 247, 255, 0.8);
+      animation: colorPulse 0.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.8;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.8;
+      }
+    }
+
+    @keyframes colorPulse {
+      0% {
+        border-color: #00f7ff;
+      }
+
+      50% {
+        border-color: #ff00f7;
+      }
+
+      100% {
+        border-color: #00f7ff;
+      }
+    }
+
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background-color: rgba(0, 247, 255, 0.7);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas" width="600" height="600"></canvas>
+    <div id="score-display">SCORE: 0</div>
+
+    <div id="start-screen">
+      <h1 class="title">CYBERPUNK SNAKE</h1>
+      <button class="button" id="start-button">START GAME</button>
+    </div>
+
+    <div id="game-over-screen" style="display: none;">
+      <h1 class="title">GAME OVER</h1>
+      <div id="final-score">SCORE: 0</div>
+      <button class="button" id="restart-button">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('game-canvas')
+      const ctx = canvas.getContext('2d')
+      const scoreDisplay = document.getElementById('score-display')
+      const finalScoreDisplay = document.getElementById('final-score')
+      const startScreen = document.getElementById('start-screen')
+      const gameOverScreen = document.getElementById('game-over-screen')
+      const startButton = document.getElementById('start-button')
+      const restartButton = document.getElementById('restart-button')
+
+      const GRID_SIZE = 20
+      const GRID_COUNT = canvas.width / GRID_SIZE
+      let score = 0
+      let gameRunning = false
+      let animationId
+      let particles = []
+
+      class Snake {
+        constructor() {
+          this.body = [
+            { x: 10, y: 10 },
+            { x: 9, y: 10 },
+            { x: 8, y: 10 }
+          ]
+          this.direction = 'right'
+          this.nextDirection = 'right'
+          this.grow = false
+        }
+
+        update () {
+          const head = { ...this.body[0] }
+
+          switch (this.direction) {
+            case 'up': head.y--; break
+            case 'down': head.y++; break
+            case 'left': head.x--; break
+            case 'right': head.x++; break
+          }
+
+          this.direction = this.nextDirection
+          this.body.unshift(head)
+          if (!this.grow) {
+            this.body.pop()
+          } else {
+            this.grow = false
+          }
+        }
+
+        draw () {
+          this.body.forEach((segment, index) => {
+            const gradient = ctx.createLinearGradient(
+              segment.x * GRID_SIZE,
+              segment.y * GRID_SIZE,
+              segment.x * GRID_SIZE + GRID_SIZE,
+              segment.y * GRID_SIZE + GRID_SIZE
+            )
+
+            const progress = index / this.body.length
+            gradient.addColorStop(0, `hsl(${180 + progress * 120}, 100%, 50%)`)
+            gradient.addColorStop(1, `hsl(${300 - progress * 60}, 100%, 50%)`)
+
+            ctx.fillStyle = gradient
+            ctx.fillRect(
+              segment.x * GRID_SIZE,
+              segment.y * GRID_SIZE,
+              GRID_SIZE,
+              GRID_SIZE
+            )
+
+            ctx.strokeStyle = 'rgba(0, 247, 255, 0.5)'
+            ctx.strokeRect(
+              segment.x * GRID_SIZE,
+              segment.y * GRID_SIZE,
+              GRID_SIZE,
+              GRID_SIZE
+            )
+          })
+        }
+
+        checkCollision () {
+          const head = this.body[0]
+
+          // Wall collision
+          if (
+            head.x < 0 ||
+            head.x >= GRID_COUNT ||
+            head.y < 0 ||
+            head.y >= GRID_COUNT
+          ) {
+            return true
+          }
+
+          // Self collision
+          for (let i = 1; i < this.body.length; i++) {
+            if (head.x === this.body[i].x && head.y === this.body[i].y) {
+              return true
+            }
+          }
+
+          return false
+        }
+      }
+
+      class Food {
+        constructor() {
+          this.position = this.generatePosition()
+          this.pulsePhase = 0
+        }
+
+        generatePosition () {
+          let x, y
+          do {
+            x = Math.floor(Math.random() * GRID_COUNT)
+            y = Math.floor(Math.random() * GRID_COUNT)
+          } while (snake.body.some(segment => segment.x === x && segment.y === y))
+
+          return { x, y }
+        }
+
+        update () {
+          this.pulsePhase = (this.pulsePhase + 0.05) % (2 * Math.PI)
+        }
+
+        draw () {
+          const pulseValue = Math.abs(Math.sin(this.pulsePhase))
+          ctx.fillStyle = `hsl(${300 + pulseValue * 60}, 100%, 50%)`
+
+          ctx.beginPath()
+          ctx.arc(
+            (this.position.x + 0.5) * GRID_SIZE,
+            (this.position.y + 0.5) * GRID_SIZE,
+            GRID_SIZE / 2,
+            0,
+            Math.PI * 2
+          )
+          ctx.fill()
+
+          ctx.strokeStyle = `rgba(0, 247, 255, ${0.5 + pulseValue * 0.3})`
+          ctx.lineWidth = 2
+          ctx.stroke()
+        }
+      }
+
+      class Particle {
+        constructor(x, y) {
+          this.x = x
+          this.y = y
+          this.size = Math.random() * 3 + 1
+          this.speedX = Math.random() * 2 - 1
+          this.speedY = Math.random() * 2 - 1
+          this.life = 30
+          this.opacity = 1
+          this.color = `hsl(${Math.random() * 60 + 270}, 100%, 50%)`
+        }
+
+        update () {
+          this.x += this.speedX
+          this.y += this.speedY
+          this.life--
+          this.opacity = this.life / 30
+        }
+
+        draw () {
+          ctx.save()
+          ctx.globalAlpha = this.opacity
+          ctx.fillStyle = this.color
+          ctx.beginPath()
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.restore()
+        }
+      }
+
+      function createParticles (x, y, count) {
+        for (let i = 0; i < count; i++) {
+          particles.push(new Particle(x, y))
+        }
+      }
+
+      function drawGrid () {
+        ctx.strokeStyle = 'rgba(0, 247, 255, 0.1)'
+        ctx.lineWidth = 0.5
+
+        for (let i = 0; i < GRID_COUNT; i++) {
+          ctx.beginPath()
+          ctx.moveTo(i * GRID_SIZE, 0)
+          ctx.lineTo(i * GRID_SIZE, canvas.height)
+          ctx.stroke()
+
+          ctx.beginPath()
+          ctx.moveTo(0, i * GRID_SIZE)
+          ctx.lineTo(canvas.width, i * GRID_SIZE)
+          ctx.stroke()
+        }
+      }
+
+      function gameLoop () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+        drawGrid()
+
+        // Update and draw particles
+        particles = particles.filter(p => p.life > 0)
+        particles.forEach(p => {
+          p.update()
+          p.draw()
+        })
+
+        snake.update()
+        if (snake.checkCollision()) {
+          gameOver()
+          return
+        }
+
+        // Check food collision
+        const head = snake.body[0]
+        if (head.x === food.position.x && head.y === food.position.y) {
+          snake.grow = true
+          score++
+          scoreDisplay.textContent = `SCORE: ${score}`
+          createParticles(
+            (food.position.x + 0.5) * GRID_SIZE,
+            (food.position.y + 0.5) * GRID_SIZE,
+            20
+          )
+          food = new Food()
+        }
+
+        food.update()
+
+        snake.draw()
+        food.draw()
+
+        animationId = requestAnimationFrame(gameLoop)
+      }
+
+      function startGame () {
+        snake = new Snake()
+        food = new Food()
+        score = 0
+        scoreDisplay.textContent = `SCORE: ${score}`
+        particles = []
+        gameRunning = true
+        startScreen.style.display = 'none'
+        gameOverScreen.style.display = 'none'
+        gameLoop()
+      }
+
+      function gameOver () {
+        gameRunning = false
+        cancelAnimationFrame(animationId)
+        finalScoreDisplay.textContent = `SCORE: ${score}`
+        gameOverScreen.style.display = 'flex'
+      }
+
+      // Event listeners
+      startButton.addEventListener('click', startGame)
+      restartButton.addEventListener('click', startGame)
+
+      document.addEventListener('keydown', (e) => {
+        if (!gameRunning) return
+
+        switch (e.key) {
+          case 'ArrowUp':
+            if (snake.direction !== 'down') snake.nextDirection = 'up'
+            break
+          case 'ArrowDown':
+            if (snake.direction !== 'up') snake.nextDirection = 'down'
+            break
+          case 'ArrowLeft':
+            if (snake.direction !== 'right') snake.nextDirection = 'left'
+            break
+          case 'ArrowRight':
+            if (snake.direction !== 'left') snake.nextDirection = 'right'
+            break
+        }
+      })
+
+      // Create background particles
+      function createBackgroundParticles () {
+        for (let i = 0; i < 30; i++) {
+          const particle = document.createElement('div')
+          particle.className = 'particle'
+          particle.style.left = `${Math.random() * 100}%`
+          particle.style.top = `${Math.random() * 100}%`
+          particle.style.opacity = Math.random() * 0.5 + 0.1
+          particle.style.transform = `scale(${Math.random() * 0.5 + 0.5})`
+          document.body.appendChild(particle)
+
+          animateParticle(particle)
+        }
+      }
+
+      function animateParticle (particle) {
+        let x = parseFloat(particle.style.left)
+        let y = parseFloat(particle.style.top)
+        let speedX = Math.random() * 0.2 - 0.1
+        let speedY = Math.random() * 0.2 + 0.1
+
+        function move () {
+          x += speedX
+          y += speedY
+
+          if (y > 100) {
+            y = -5
+            x = Math.random() * 100
+          }
+
+          if (x < 0 || x > 100) {
+            speedX *= -1
+          }
+
+          particle.style.left = `${x}%`
+          particle.style.top = `${y}%`
+
+          requestAnimationFrame(move)
+        }
+
+        move()
+      }
+
+      createBackgroundParticles()
+    });
+  </script>
+</body>
+
+</html>

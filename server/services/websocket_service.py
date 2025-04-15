@@ -7,6 +7,7 @@ import markdown
 # internal modules
 from core.roles import ROLES
 import uuid
+from services.llm_service import LLMProvider
 
 class WebSocketService:
     def __init__(self, sio, agents):
@@ -92,9 +93,14 @@ class WebSocketService:
       """处理前端发起的项目启动请求"""
       try:
           goal = data.get('goal')
+          model = data.get('model', 'gpt-4o')
           if not goal:
               await self.sio.emit('error', {'message': '缺少需求参数'}, room=sid)
               return
+
+          provider = LLMProvider.OPENAI if model == 'gpt-4o' else LLMProvider.DEEPSEEK
+          for agent in self.agents.values():
+            agent.provider = provider
 
           # 生成唯一对话ID
           conversation_id = str(uuid.uuid4())
