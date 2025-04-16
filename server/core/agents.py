@@ -17,13 +17,13 @@ class Agent:
         性格特征：{self.role.personality}
         
         【当前任务】
-        请根据以下输入生成符合角色的回复：
         {input_text}
 
         【回复要求】
-        1. 使用{self.role.expertise}领域的专业术语
-        2. 保持{self.role.personality}的表达风格
-        3. 结构化输出（分点说明）
+        1. 严格保持{self.role.name}的专业身份
+        2. 使用{self.role.expertise}领域的专业术语
+        3. 保持{self.role.personality}的表达风格
+        4. 结构化输出（分点说明）
         """
 
     async def stream_response(self, input_text: str) -> AsyncGenerator[str, None]:

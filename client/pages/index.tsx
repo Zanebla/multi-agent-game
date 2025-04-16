@@ -147,7 +147,9 @@ export default function Chat() {
               onClick={() => {
                 const gameWindow = window.open('', '_blank')
                 if (gameWindow) {
-                  gameWindow.document.write(fullCode)
+                  // 提取 HTML 内容部分
+                  const htmlContent = fullCode.replace(/```html|```/g, '')
+                  gameWindow.document.write(htmlContent)
                   gameWindow.document.close()
                 }
               }}

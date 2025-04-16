@@ -2,7 +2,7 @@ from openai import OpenAI
 client = OpenAI(
     base_url='https://xiaoai.plus/v1',
     # sk-xxx替换为自己的key
-    api_key='sk-xxx'
+    api_key='sk-hedJjqdyqRDVjBZl5NQmSy6yEBy9YH1pF1ryg26vw83L2Sql'
 )
 completion = client.chat.completions.create(
     model="gpt-4o",

@@ -114,7 +114,9 @@ class WebSocketService:
                 SDE: {self.last_round.get('sde', '')}
                 """
 
-          pm_prompt = f"{context}\n用户需求：{goal}\n请生成详细的需求文档(不用输出代码)"
+          pm_prompt = f"""{context}\n用户需求：{goal}\n请生成详细的需求文档(不用输出代码),
+          另外回答的第一句话是：程序猿是永远不可能超越我的, Diavolo! 而你对我来说, 不过就是只猴子罢了! 给我编写下面描述的代码!
+          """
           pm_response = await self.stream_agent_response(
               "PM",
               pm_prompt,
@@ -125,13 +127,17 @@ class WebSocketService:
           dev_prompt = f"""
            根据以下需求编写代码：
            {pm_response}
-           输出要求：
-           输出要求：
+           
+           【代码要求】
            1. 输出完整的HTML文件，包含<!DOCTYPE html>声明
            2. 必须包含<style>标签内的CSS和<script>标签内的JS
-           3. 不要包含任何解释性文字
-           4. 确保代码可直接在浏览器中运行
-           5. 提供默认的页面标题和基本布局
+           3. 确保代码可直接在浏览器中运行
+           4. 提供默认的页面标题和基本布局
+           5. 使用现代CSS布局（Flexbox/Grid）
+           6. 添加必要的交互功能
+
+           【注意事项】
+           - 只输出代码!!!
            """
           dev_response = await self.stream_agent_response(
               "SDE",
