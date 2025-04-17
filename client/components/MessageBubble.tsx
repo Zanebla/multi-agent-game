@@ -26,6 +26,7 @@ export default function MessageBubble({
       )}
 
       <div
+        data-testid="message-bubble"
         className={`max-w-[75%] rounded-lg p-4 relative
           ${
             isUser
