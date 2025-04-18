@@ -6,8 +6,9 @@ import asyncio
 from .roles import Role
 
 class Agent:
-    def __init__(self, role: Role):
+    def __init__(self, role: Role, provider: LLMProvider = LLMProvider.OPENAI):
         self.role = role
+        self.provider = provider  # 添加provider属性
         self.active_stream: Optional[AsyncGenerator] = None  
 
     def generate_prompt(self, input_text: str) -> str:
